@@ -23,5 +23,61 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
+  // Relations
+  chatRooms      ChatRoomMember[]
+  messages      Message[]
+
   @@map("users")
+}
+
+// ChatRoom model for DM and group chats
+model ChatRoom {
+  id        String   @id @default(cuid())
+  type      ChatRoomType @default(DM) // DM or GROUP
+  name      String?  // For group chats
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  members   ChatRoomMember[]
+  messages  Message[]
+
+  @@map("chat_rooms")
+}
+
+// ChatRoomMember - many-to-many relationship
+model ChatRoomMember {
+  id        String   @id @default(cuid())
+  userId    String
+  chatRoomId String
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatRoom  ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chatRoomId])
+  @@map("chat_room_members")
+}
+
+// Message model
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  chatRoomId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatRoom  ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+
+  @@index([chatRoomId, createdAt])
+  @@map("messages")
+}
+
+enum ChatRoomType {
+  DM
+  GROUP
 }

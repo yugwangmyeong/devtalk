@@ -3,13 +3,27 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { ProfileEditModal } from './ProfileEditModal';
 import './css/MainLayout.css';
 
 export function Sidebar() {
   const router = useRouter();
-  const { logout } = useAuthStore();
+  const { logout, user } = useAuthStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // 프로필 이미지 URL 확인 및 정규화
+  const profileImageUrl = user?.profileImageUrl?.trim() || null;
+
+  // 디버깅: 프로필 이미지 URL 확인
+  useEffect(() => {
+    if (user) {
+      console.log('User profileImageUrl:', user.profileImageUrl);
+      console.log('Normalized profileImageUrl:', profileImageUrl);
+    }
+  }, [user, profileImageUrl]);
 
   // 외부 클릭 시 메뉴 닫기
   useEffect(() => {
@@ -43,7 +57,7 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="main-nav">
-        <button 
+        <button
           className="main-nav-button"
           onClick={() => router.push('/')}
         >
@@ -53,7 +67,7 @@ export function Sidebar() {
           <span className="main-nav-text">HOME</span>
         </button>
 
-        <button 
+        <button
           className="main-nav-button"
           onClick={() => router.push('/chat')}
         >
@@ -80,13 +94,37 @@ export function Sidebar() {
           </svg>
         </button>
         <div className="main-bottom-menu-wrapper">
-          <button 
+          <button
             className="main-bottom-button"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-          ></button>
+          >
+            {profileImageUrl && !imageError ? (
+              <img
+                key={profileImageUrl}
+                src={profileImageUrl}
+                alt={user?.name || user?.email || 'Profile'}
+                className="main-bottom-button-image"
+                onError={() => setImageError(true)}
+                onLoad={() => setImageError(false)}
+              />
+            ) : (
+              <div className="main-bottom-button-placeholder">
+                {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
+              </div>
+            )}
+          </button>
           {isMenuOpen && (
             <div className="main-bottom-menu">
-              <button 
+              <button
+                className="main-bottom-menu-item"
+                onClick={() => {
+                  setIsProfileModalOpen(true);
+                  setIsMenuOpen(false);
+                }}
+              >
+                회원정보수정
+              </button>
+              <button
                 className="main-bottom-menu-item"
                 onClick={handleLogout}
               >
@@ -96,6 +134,12 @@ export function Sidebar() {
           )}
         </div>
       </div>
+
+      {/* Profile Edit Modal */}
+      <ProfileEditModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
     </aside>
   );
 }

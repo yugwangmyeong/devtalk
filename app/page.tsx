@@ -1,16 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
 import { LoginPage } from '@/components/Auth/LoginPage';
 import { MainPage } from '@/components/MainPage';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 export default function Home() {
-  const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
-
-  useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+  const { isAuthenticated, isLoading } = useAuthStore();
 
   if (isLoading) {
     return (

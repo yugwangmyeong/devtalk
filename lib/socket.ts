@@ -16,8 +16,12 @@ export function initializeSocket(server: HTTPServer | HTTPSServer) {
   });
 
   io.on('connection', (socket) => {
-    console.log('Client connected:', socket.id);
-    setupSocketHandlers(socket);
+    console.log('[Socket Server] Client connected:', socket.id);
+    setupSocketHandlers(socket, io);
+  });
+
+  io.on('connection_error', (error) => {
+    console.error('[Socket Server] Connection error:', error);
   });
 
   return io;

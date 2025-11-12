@@ -1,24 +1,60 @@
 // Socket.IO event types
 export interface ServerToClientEvents {
-  // Define your server-to-client events here
-  message: (data: { message: string; timestamp: Date }) => void;
-  userJoined: (data: { userId: string; username: string }) => void;
-  userLeft: (data: { userId: string }) => void;
+  authenticated: (data: { success: boolean; error?: string }) => void;
+  joinedRoom: (data: { roomId: string }) => void;
+  userJoined: (data: { userId: string; roomId: string }) => void;
+  userLeft: (data: { userId: string; roomId: string }) => void;
+  newMessage: (data: {
+    id: string;
+    content: string;
+    userId: string;
+    chatRoomId: string;
+    createdAt: Date;
+    user: {
+      id: string;
+      email: string;
+      name: string | null;
+      profileImageUrl: string | null;
+    };
+  }) => void;
+  messageSent: (data: {
+    id: string;
+    content: string;
+    userId: string;
+    chatRoomId: string;
+    createdAt: Date;
+    user: {
+      id: string;
+      email: string;
+      name: string | null;
+      profileImageUrl: string | null;
+    };
+  }) => void;
+  roomMessageUpdate: (data: {
+    roomId: string;
+    lastMessage: {
+      id: string;
+      content: string;
+      createdAt: string;
+      user: {
+        id: string;
+        email: string;
+        name: string | null;
+      };
+    };
+    updatedAt: string;
+  }) => void;
+  error: (data: { message: string }) => void;
 }
 
 export interface ClientToServerEvents {
-  // Define your client-to-server events here
-  joinRoom: (roomId: string) => void;
-  leaveRoom: (roomId: string) => void;
-  sendMessage: (data: { roomId: string; message: string }) => void;
+  authenticate: (data: { token: string }) => void;
+  joinRoom: (data: { roomId: string }) => void;
+  leaveRoom: (data: { roomId: string }) => void;
+  sendMessage: (data: { roomId: string; content: string }) => void;
 }
 
-// export interface InterServerEvents {
-//   // Define inter-server events here (for scaling)
-// }
-
 export interface SocketData {
-  // Define socket data types here
   userId?: string;
   username?: string;
 }
