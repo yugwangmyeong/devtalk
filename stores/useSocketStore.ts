@@ -11,7 +11,7 @@ interface SocketState {
 }
 
 export const useSocketStore = create<SocketState>((set, get) => ({
-  socket: null,
+  socket: null,    
   isConnected: false,
   isAuthenticated: false,
   connect: (token: string) => {

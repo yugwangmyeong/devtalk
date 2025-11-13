@@ -15,7 +15,7 @@ export function ChatPage() {
   const { socket, isConnected, isAuthenticated } = useSocketStore();
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   // Socket 연결 상태 모니터링
   useEffect(() => {
     console.log('[ChatPage] Socket state:', {
@@ -34,31 +34,31 @@ export function ChatPage() {
 
   // Fetch chat rooms and ensure personal space exists
   useEffect(() => {
-    console.log('[ChatPage] useEffect dependency changed:', { 
-      user: user ? user.email : null, 
+    console.log('[ChatPage] useEffect dependency changed:', {
+      user: user ? user.email : null,
       isAuthLoading,
-      hasUser: !!user 
+      hasUser: !!user
     });
-    
+
     // 인증 로딩 중이거나 user가 없으면 기다림
     if (isAuthLoading) {
       console.log('[ChatPage] Auth still loading, waiting...');
       return;
     }
-    
+
     if (!user) {
       console.log('[ChatPage] No user, skipping fetch');
       setIsLoadingRooms(false);
       return;
     }
-    
+
     const fetchRooms = async () => {
       console.log('[ChatPage] fetchRooms called, user:', user.email);
-      
+
       try {
         const roomIdFromUrl = searchParams.get('roomId');
         console.log('[ChatPage] Starting to fetch rooms, roomIdFromUrl:', roomIdFromUrl);
-        
+
         // 먼저 개인 공간이 존재하는지 확인 (생성/확인용)
         // 이 API는 개인 공간이 없으면 생성함
         let personalSpaceRoom: ChatRoom | null = null;
@@ -68,7 +68,7 @@ export function ChatPage() {
             const personalSpaceData = await personalSpaceResponse.json();
             personalSpaceRoom = personalSpaceData.room;
             console.log('[ChatPage] Personal space room from API:', personalSpaceRoom?.id, personalSpaceRoom?.name);
-            
+
             // 개인 공간을 즉시 rooms 배열에 추가하고 선택
             if (personalSpaceRoom) {
               // 개인 공간을 즉시 추가 (초기 로딩 시 빠른 표시를 위해)
@@ -82,7 +82,7 @@ export function ChatPage() {
                   return [personalSpaceRoom!, ...prevRooms];
                 }
               });
-              
+
               // URL에 roomId가 없거나 개인 공간이면 개인 공간 선택
               // 이렇게 하면 새로고침 시 즉시 개인 공간이 선택됨
               if (!roomIdFromUrl || roomIdFromUrl === personalSpaceRoom.id) {
@@ -108,21 +108,21 @@ export function ChatPage() {
         console.log('[ChatPage] Calling /api/chat/rooms...');
         const response = await fetch('/api/chat/rooms');
         console.log('[ChatPage] Response status:', response.status, response.ok);
-        
+
         if (!response.ok) {
           const errorText = await response.text();
           console.error('[ChatPage] Failed to fetch rooms:', response.status, errorText);
           setIsLoadingRooms(false);
           return;
         }
-        
+
         const data = await response.json();
         console.log('[ChatPage] Response data:', data);
         let allRooms: ChatRoom[] = data.rooms || [];
         console.log('[ChatPage] Fetched rooms:', allRooms.length, 'rooms');
-        console.log('[ChatPage] All room details:', allRooms.map(r => ({ 
-          id: r.id, 
-          name: r.name, 
+        console.log('[ChatPage] All room details:', allRooms.map(r => ({
+          id: r.id,
+          name: r.name,
           type: r.type,
           isPersonalSpace: r.isPersonalSpace,
           memberCount: r.members.length,
@@ -135,7 +135,7 @@ export function ChatPage() {
           name: r.name,
           members: r.members.map(m => ({ email: m.email, name: m.name }))
         })));
-        
+
         // 개인 공간이 rooms 배열에 없으면 추가
         if (personalSpaceRoom) {
           const existingPersonalSpace = allRooms.find((r: ChatRoom) => r.isPersonalSpace);
@@ -144,26 +144,26 @@ export function ChatPage() {
             console.log('[ChatPage] Added personal space to rooms array');
           } else {
             // 기존 개인 공간을 최신 정보로 업데이트
-            allRooms = allRooms.map((r: ChatRoom) => 
+            allRooms = allRooms.map((r: ChatRoom) =>
               r.isPersonalSpace ? personalSpaceRoom! : r
             );
             console.log('[ChatPage] Updated existing personal space in rooms array');
           }
         }
-        
+
         setRooms(allRooms);
         console.log('[ChatPage] Set rooms state:', allRooms.length, 'rooms');
-        
+
         // 개인 공간 찾기 (rooms 배열에서)
         const finalPersonalSpaceRoom = allRooms.find((r: ChatRoom) => r.isPersonalSpace) || personalSpaceRoom;
         console.log('[ChatPage] Final personal space room:', finalPersonalSpaceRoom?.id, finalPersonalSpaceRoom?.name);
-        
+
         // URL에서 roomId 읽어서 채팅방 선택
         if (roomIdFromUrl) {
           // rooms 배열에서 찾기
           const roomToSelect = allRooms.find((r: ChatRoom) => r.id === roomIdFromUrl);
           console.log('[ChatPage] Room to select from URL:', roomToSelect?.id, roomToSelect?.name);
-          
+
           if (roomToSelect) {
             // 채팅방 목록 설정과 동시에 선택된 채팅방 설정
             setSelectedRoom(roomToSelect);
@@ -246,7 +246,7 @@ export function ChatPage() {
       }
 
       console.log('[ChatPage] Joining room:', selectedRoom.id, 'Socket ID:', socket.id);
-      
+
       const handleJoinedRoom = (data: { roomId: string }) => {
         console.log('[ChatPage] Successfully joined room:', data.roomId);
       };
@@ -257,7 +257,7 @@ export function ChatPage() {
 
       socket.on('joinedRoom', handleJoinedRoom);
       socket.on('error', handleJoinError);
-      
+
       socket.emit('joinRoom', { roomId: selectedRoom.id });
 
       return () => {
@@ -310,11 +310,10 @@ export function ChatPage() {
         createdAt: typeof data.createdAt === 'string' ? data.createdAt : data.createdAt.toISOString(),
       };
 
+      // 현재 선택된 방의 메시지만 추가 (알림은 NotificationProvider에서 처리)
       if (message.chatRoomId === selectedRoom?.id) {
         console.log('[ChatPage] Adding message to current room');
         setMessages((prev) => [...prev, message]);
-      } else {
-        console.log('[ChatPage] Message is for different room, not adding to messages');
       }
       // Update room list with new last message
       setRooms((prev) =>
@@ -353,8 +352,7 @@ export function ChatPage() {
       };
       updatedAt: string;
     }) => {
-      console.log('[ChatPage] Room message update received:', data.roomId);
-      // Update room list with new last message (for rooms user is not currently viewing)
+      // 채팅방 목록 업데이트 (알림은 NotificationProvider에서 처리)
       setRooms((prev) =>
         prev.map((room) =>
           room.id === data.roomId
@@ -391,7 +389,7 @@ export function ChatPage() {
       socket.off('roomMessageUpdate', handleRoomMessageUpdate);
       socket.off('error', handleError);
     };
-  }, [socket, selectedRoom?.id]);
+  }, [socket, selectedRoom?.id, user?.id]);
 
 
   // Handle send message
@@ -402,7 +400,7 @@ export function ChatPage() {
 
     const content = messageInput.trim();
     const roomId = selectedRoom.id;
-    
+
     // 개인 공간의 경우 HTTP API 사용
     if (selectedRoom.isPersonalSpace) {
       try {
@@ -418,36 +416,36 @@ export function ChatPage() {
           const data = await response.json();
           const message: Message = {
             ...data.message,
-            createdAt: typeof data.message.createdAt === 'string' 
-              ? data.message.createdAt 
+            createdAt: typeof data.message.createdAt === 'string'
+              ? data.message.createdAt
               : new Date(data.message.createdAt).toISOString(),
           };
-          
+
           // 메시지 목록에 추가
           setMessages((prev) => [...prev, message]);
-          
+
           // 채팅방 목록 업데이트
           setRooms((prev) =>
             prev.map((room) =>
               room.id === roomId
                 ? {
-                    ...room,
-                    lastMessage: {
-                      id: message.id,
-                      content: message.content,
-                      createdAt: message.createdAt,
-                      user: {
-                        id: message.user.id,
-                        email: message.user.email,
-                        name: message.user.name,
-                      },
+                  ...room,
+                  lastMessage: {
+                    id: message.id,
+                    content: message.content,
+                    createdAt: message.createdAt,
+                    user: {
+                      id: message.user.id,
+                      email: message.user.email,
+                      name: message.user.name,
                     },
-                    updatedAt: new Date().toISOString(),
-                  }
+                  },
+                  updatedAt: new Date().toISOString(),
+                }
                 : room
             )
           );
-          
+
           setMessageInput('');
         } else {
           const error = await response.json();
@@ -466,9 +464,9 @@ export function ChatPage() {
     // 
     // 클라이언트에서는 Socket이 연결되어 있으면 Socket.io 사용 시도
     // 서버에서 Room에 다른 사용자가 있으면 실시간 브로드캐스트, 없으면 DB 저장만
-    
+
     const isSocketReady = socket && isConnected && isAuthenticated;
-    
+
     console.log('[ChatPage] Message send decision:', {
       hasSocket: !!socket,
       socketId: socket?.id,
@@ -511,36 +509,36 @@ export function ChatPage() {
         const data = await response.json();
         const message: Message = {
           ...data.message,
-          createdAt: typeof data.message.createdAt === 'string' 
-            ? data.message.createdAt 
+          createdAt: typeof data.message.createdAt === 'string'
+            ? data.message.createdAt
             : new Date(data.message.createdAt).toISOString(),
         };
-        
+
         // 메시지 목록에 추가
         setMessages((prev) => [...prev, message]);
-        
+
         // 채팅방 목록 업데이트
         setRooms((prev) =>
           prev.map((room) =>
             room.id === roomId
               ? {
-                  ...room,
-                  lastMessage: {
-                    id: message.id,
-                    content: message.content,
-                    createdAt: message.createdAt,
-                    user: {
-                      id: message.user.id,
-                      email: message.user.email,
-                      name: message.user.name,
-                    },
+                ...room,
+                lastMessage: {
+                  id: message.id,
+                  content: message.content,
+                  createdAt: message.createdAt,
+                  user: {
+                    id: message.user.id,
+                    email: message.user.email,
+                    name: message.user.name,
                   },
-                  updatedAt: new Date().toISOString(),
-                }
+                },
+                updatedAt: new Date().toISOString(),
+              }
               : room
           )
         );
-        
+
         setMessageInput('');
         console.log('[ChatPage] Message sent via HTTP API');
       } else {

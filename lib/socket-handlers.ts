@@ -221,16 +221,16 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
         updatedAt: new Date().toISOString(),
       };
 
-      // Find all connected sockets for room members and send update
+      // Send roomMessageUpdate to all room members (except sender)
+      // This ensures all members get notified regardless of which room they're currently viewing
       io.sockets.sockets.forEach((connectedSocket) => {
         const authenticatedSocket = connectedSocket as AuthenticatedSocket;
         if (authenticatedSocket.userId && memberUserIds.includes(authenticatedSocket.userId)) {
           if (authenticatedSocket.id !== socket.id) {
-            // For users not currently viewing this room, send roomMessageUpdate
-            if (!connectedSocket.rooms.has(roomId)) {
-              console.log(`[Socket] Sending roomMessageUpdate to user ${authenticatedSocket.userId} (not in room)`);
-              connectedSocket.emit('roomMessageUpdate', roomMessageUpdate);
-            }
+            // Send roomMessageUpdate to all members (they will handle notification logic on client side)
+            // This works for users on main page, other pages, or viewing different rooms
+            console.log(`[Socket] Sending roomMessageUpdate to user ${authenticatedSocket.userId} (socket ${authenticatedSocket.id})`);
+            connectedSocket.emit('roomMessageUpdate', roomMessageUpdate);
           }
         }
       });
