@@ -112,9 +112,9 @@ export function ChatPage() {
           console.error('[ChatPage] Error fetching personal space:', error);
         }
 
-        // 모든 채팅방 가져오기 (개인 공간 포함)
-        console.log('[ChatPage] Calling /api/chat/rooms...');
-        const response = await fetch('/api/chat/rooms');
+        // DM 채팅방만 가져오기 (개인 공간 포함)
+        console.log('[ChatPage] Calling /api/chat/rooms?type=DM...');
+        const response = await fetch('/api/chat/rooms?type=DM');
         console.log('[ChatPage] Response status:', response.status, response.ok);
 
         if (!response.ok) {

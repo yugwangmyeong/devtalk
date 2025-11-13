@@ -48,9 +48,13 @@ export async function GET(
     }
 
     // Get all TeamChannels for this team
+    // Only include chatRoom if it's type GROUP (channels only, exclude DM rooms)
     const teamChannels = await prisma.teamChannel.findMany({
       where: {
         teamId: teamId,
+        chatRoom: {
+          type: 'GROUP', // Only GROUP type rooms (channels)
+        },
       },
       include: {
         chatRoom: {

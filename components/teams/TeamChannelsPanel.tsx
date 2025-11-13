@@ -37,13 +37,7 @@ export function TeamChannelsPanel({
   const [showCreateChannelForm, setShowCreateChannelForm] = useState(false);
   const [channelName, setChannelName] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [showTeamMenu, setShowTeamMenu] = useState(false);
-  const [showRenameModal, setShowRenameModal] = useState(false);
-  const [newTeamName, setNewTeamName] = useState('');
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   // Use external props if provided, otherwise use internal state
   const channels = externalChannels ?? internalChannels;
@@ -129,121 +123,12 @@ export function TeamChannelsPanel({
     }
   };
 
-  // Check if user is admin or owner
-  const isAdminOrOwner = selectedTeam?.role === 'OWNER' || selectedTeam?.role === 'ADMIN';
-
-  // Handle rename team
-  const handleRenameTeam = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedTeam || !newTeamName.trim()) {
-      setError('워크스페이스 이름을 입력해주세요.');
-      return;
-    }
-
-    setIsRenaming(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/teams/${selectedTeam.id}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          name: newTeamName.trim(),
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        // Update selectedTeam in store
-        useTeamViewStore.getState().selectTeam(data.team);
-        setShowRenameModal(false);
-        setNewTeamName('');
-        setShowTeamMenu(false);
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || '워크스페이스 이름 변경에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('Failed to rename team:', error);
-      setError('워크스페이스 이름 변경에 실패했습니다.');
-    } finally {
-      setIsRenaming(false);
-    }
-  };
-
-  // Handle delete team
-  const handleDeleteTeam = async () => {
-    if (!selectedTeam) return;
-
-    const confirmed = window.confirm(
-      `정말로 "${selectedTeam.name}" 워크스페이스를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.`
-    );
-
-    if (!confirmed) return;
-
-    setIsDeleting(true);
-    setError(null);
-
-    try {
-      const response = await fetch(`/api/teams/${selectedTeam.id}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        // Close panel and clear selected team
-        useTeamViewStore.getState().selectTeam(null);
-        onClose();
-        // Refresh teams list if on TeamsPage
-        if (window.location.pathname === '/teams') {
-          window.location.reload();
-        }
-      } else {
-        const errorData = await response.json();
-        setError(errorData.error || '워크스페이스 삭제에 실패했습니다.');
-      }
-    } catch (error) {
-      console.error('Failed to delete team:', error);
-      setError('워크스페이스 삭제에 실패했습니다.');
-    } finally {
-      setIsDeleting(false);
-      setShowTeamMenu(false);
-    }
-  };
-
-  // 외부 클릭 시 패널 닫기 (teams-chat-area는 제외)
+  // 외부 클릭 시 패널 닫기
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (!panelRef.current) return;
-      
-      const target = event.target as Node;
-      
-      // 메뉴 외부 클릭 시 메뉴 닫기
-      if (menuRef.current && !menuRef.current.contains(target)) {
-        setShowTeamMenu(false);
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
+        onClose();
       }
-      
-      // 패널 내부 클릭이면 무시
-      if (panelRef.current.contains(target)) {
-        return;
-      }
-      
-      // teams-chat-area 내부 클릭이면 무시 (TeamsPage에서 사용할 때)
-      const chatArea = document.querySelector('.teams-chat-area');
-      if (chatArea && chatArea.contains(target)) {
-        return;
-      }
-      
-      // teams-page-layout 내부 클릭이면 무시 (TeamsPage에서 사용할 때)
-      const pageLayout = document.querySelector('.teams-page-layout');
-      if (pageLayout && pageLayout.contains(target) && !panelRef.current.contains(target)) {
-        // teams-page-layout 내부지만 패널 외부인 경우는 무시 (채팅 영역 클릭)
-        return;
-      }
-      
-      // 그 외의 경우에만 닫기
-      onClose();
     };
 
     if (isOpen) {
@@ -288,43 +173,11 @@ export function TeamChannelsPanel({
       {/* Team Header */}
       <div className="team-channels-header">
         <div className="team-channels-team-name">
-          <span 
-            className="team-channels-team-icon"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (isAdminOrOwner) {
-                setShowTeamMenu(!showTeamMenu);
-              }
-            }}
-            style={{ cursor: isAdminOrOwner ? 'pointer' : 'default' }}
-          >
+          <span className="team-channels-team-icon">
             {selectedTeam.name[0]?.toUpperCase() || 'T'}
           </span>
           <span className="team-channels-team-text">{selectedTeam.name}</span>
         </div>
-        
-        {/* Team Menu Dropdown */}
-        {showTeamMenu && isAdminOrOwner && (
-          <div className="team-channels-menu" ref={menuRef}>
-            <button
-              className="team-channels-menu-item"
-              onClick={() => {
-                setNewTeamName(selectedTeam.name);
-                setShowRenameModal(true);
-                setShowTeamMenu(false);
-              }}
-            >
-              이름 변경
-            </button>
-            <button
-              className="team-channels-menu-item team-channels-menu-item-danger"
-              onClick={handleDeleteTeam}
-              disabled={isDeleting}
-            >
-              {isDeleting ? '삭제 중...' : '워크스페이스 삭제'}
-            </button>
-          </div>
-        )}
         {/* <button
           className="team-channels-close"
           onClick={() => {
@@ -413,48 +266,6 @@ export function TeamChannelsPanel({
             {error && (
               <div className="team-channels-error">
                 {error}
-              </div>
-            )}
-
-            {/* Rename Team Modal */}
-            {showRenameModal && (
-              <div className="team-channels-modal-overlay" onClick={() => setShowRenameModal(false)}>
-                <div className="team-channels-modal" onClick={(e) => e.stopPropagation()}>
-                  <h3 className="team-channels-modal-title">워크스페이스 이름 변경</h3>
-                  <form onSubmit={handleRenameTeam}>
-                    <input
-                      type="text"
-                      className="team-channels-create-input"
-                      value={newTeamName}
-                      onChange={(e) => setNewTeamName(e.target.value)}
-                      placeholder="워크스페이스 이름"
-                      maxLength={100}
-                      required
-                      autoFocus
-                    />
-                    <div className="team-channels-create-actions">
-                      <button
-                        type="button"
-                        className="team-channels-create-button team-channels-create-button-cancel"
-                        onClick={() => {
-                          setShowRenameModal(false);
-                          setNewTeamName('');
-                          setError(null);
-                        }}
-                        disabled={isRenaming}
-                      >
-                        취소
-                      </button>
-                      <button
-                        type="submit"
-                        className="team-channels-create-button team-channels-create-button-submit"
-                        disabled={isRenaming || !newTeamName.trim()}
-                      >
-                        {isRenaming ? '변경 중...' : '변경'}
-                      </button>
-                    </div>
-                  </form>
-                </div>
               </div>
             )}
 

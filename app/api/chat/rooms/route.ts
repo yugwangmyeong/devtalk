@@ -28,6 +28,9 @@ export async function GET(request: NextRequest) {
     // Get all chat rooms for the user
     console.log('[GET /api/chat/rooms] Fetching rooms for user:', decoded.userId);
     
+    // Optional filter by room type (DM, GROUP, etc.)
+    const typeFilter = request.nextUrl.searchParams.get('type');
+    
     // First, get all room IDs the user is a member of
     const userMemberships = await prisma.chatRoomMember.findMany({
       where: {
@@ -40,13 +43,21 @@ export async function GET(request: NextRequest) {
 
     const roomIds = userMemberships.map(m => m.chatRoomId);
 
+    // Build where clause
+    const whereClause: any = {
+      id: {
+        in: roomIds,
+      },
+    };
+    
+    // Add type filter if provided
+    if (typeFilter) {
+      whereClause.type = typeFilter;
+    }
+
     // Then, fetch all rooms with their members and messages
     const rooms = await prisma.chatRoom.findMany({
-      where: {
-        id: {
-          in: roomIds,
-        },
-      },
+      where: whereClause,
       include: {
         members: {
           include: {
@@ -87,6 +98,7 @@ export async function GET(request: NextRequest) {
       roomIds: rooms.map(r => r.id),
       roomTypes: rooms.map(r => r.type),
       memberCounts: rooms.map(r => r.members.length),
+      typeFilter: typeFilter || 'none',
     });
 
     // Format the response
