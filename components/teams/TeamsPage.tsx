@@ -59,7 +59,7 @@ export function TeamsPage() {
       // URL에 teamId가 있으면 항상 해당 팀을 선택
       // TeamsPage에서는 자체적으로 TeamChannelsPanel을 표시하므로 Sidebar의 채널 패널은 닫아야 함
       closeChannelsPanel();
-      
+
       if (!selectedTeam || selectedTeam.id !== teamIdFromUrl) {
         // Fetch team details and select it
         const fetchTeam = async () => {
@@ -105,7 +105,7 @@ export function TeamsPage() {
         const data = await response.json();
         const fetchedChannels = data.channels || [];
         setChannels(fetchedChannels);
-        
+
         // URL에서 channelId 읽어서 채널 선택
         const channelIdFromUrl = searchParams.get('channelId');
         if (channelIdFromUrl) {
@@ -326,7 +326,7 @@ export function TeamsPage() {
         /* teamId가 없을 때: TeamPanel 표시 */
         <>
           <div className="teams-panel-container">
-            <TeamPanel isOpen={true} onClose={() => {}} isFullPage={true} />
+            <TeamPanel isOpen={true} onClose={() => { }} isFullPage={true} />
           </div>
           <div className="teams-page-layout">
             <div className="teams-empty-state">

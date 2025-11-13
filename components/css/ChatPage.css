@@ -372,6 +372,13 @@
   min-height: 100%;
 }
 
+.chat-loading-more {
+  text-align: center;
+  padding: 0.5rem;
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
 /* Message Input Section */
 .chat-input-section {
   padding: 1rem;
@@ -654,6 +661,12 @@
   background-color: #e5e7eb;
 }
 
+.chat-message-avatar-spacer {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
 .chat-message-content {
   max-width: 70%;
   display: flex;
@@ -678,6 +691,12 @@
   margin-bottom: 0.25rem;
 }
 
+.chat-message-text-wrapper {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
 .chat-message-text {
   padding: 0.5rem 0.75rem;
   background-color: white;
@@ -686,6 +705,8 @@
   color: #111827;
   word-wrap: break-word;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: inline-block;
+  max-width: 100%;
 }
 
 .chat-message-own .chat-message-text {
@@ -697,6 +718,19 @@
   font-size: 0.625rem;
   color: #9ca3af;
   padding: 0 0.5rem;
+}
+
+.chat-message-time-separate {
+  font-size: 0.625rem;
+  color: #9ca3af;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-bottom: 0.25rem;
+  line-height: 1;
+}
+
+.chat-message-own .chat-message-time-separate {
+  color: #9ca3af;
 }
 
 /* Empty States */

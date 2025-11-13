@@ -219,6 +219,7 @@ export function ChatPage() {
     }
 
     setIsLoadingMessages(true);
+    
     const fetchMessages = async () => {
       try {
         const response = await fetch(`/api/chat/messages?roomId=${selectedRoom.id}`);
@@ -326,7 +327,14 @@ export function ChatPage() {
       // 현재 선택된 방의 메시지만 추가 (알림은 NotificationProvider에서 처리)
       if (message.chatRoomId === selectedRoom?.id) {
         console.log('[ChatPage] Adding message to current room');
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => {
+          // 중복 체크
+          const exists = prev.some(m => m.id === message.id);
+          if (exists) {
+            return prev;
+          }
+          return [...prev, message];
+        });
       }
       // Update room list with new last message
       setRooms((prev) =>
