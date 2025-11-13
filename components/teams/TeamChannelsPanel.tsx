@@ -123,8 +123,13 @@ export function TeamChannelsPanel({
     }
   };
 
-  // 외부 클릭 시 패널 닫기
+  // 외부 클릭 시 패널 닫기 (TeamsPage에서 사용할 때는 비활성화)
   useEffect(() => {
+    // externalOnChannelClick이 있으면 TeamsPage에서 사용 중이므로 외부 클릭 핸들러 비활성화
+    if (externalOnChannelClick) {
+      return;
+    }
+
     const handleClickOutside = (event: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(event.target as Node)) {
         onClose();
@@ -138,7 +143,7 @@ export function TeamChannelsPanel({
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, externalOnChannelClick]);
 
   // team-channels-section 빈 공간 클릭 시 아무 동작도 하지 않도록
   const handleSectionClick = (e: React.MouseEvent<HTMLDivElement>) => {

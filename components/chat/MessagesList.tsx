@@ -43,17 +43,16 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
               ? (message.user.id === currentUserId || message.userId === currentUserId)
               : false;
 
-          // 개인 채팅(DM)인 경우, 같은 사용자가 1분 이내에 보낸 연속 메시지 처리
+          // DM과 채널 모두에서 연속 메시지 처리
           let showTime = true;
           let showAvatar = true;
           let showSenderName = true;
           
           const previousMessage = index > 0 ? messages[index - 1] : null;
+          const nextMessage = messages[index + 1];
           
           if (roomType === 'DM') {
-            const nextMessage = messages[index + 1];
-            
-            // 프로필과 이름: 이전 메시지와 비교하여 첫 번째 메시지에만 표시
+            // DM: 프로필과 이름 - 1분 이내 연속 메시지면 숨김
             if (!isOwnMessage && previousMessage) {
               const currentTime = new Date(message.createdAt).getTime();
               const prevTime = new Date(previousMessage.createdAt).getTime();
@@ -61,14 +60,13 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
               const isSameUserAsPrev = message.userId === previousMessage.userId ||
                 message.user.id === previousMessage.user.id;
 
-              // 이전 메시지가 같은 사용자가 보낸 것이고 1분(60000ms) 이내이면 프로필/이름 숨김
               if (isSameUserAsPrev && timeDiff <= 60000) {
                 showAvatar = false;
                 showSenderName = false;
               }
             }
             
-            // 시간: 다음 메시지와 비교하여 마지막 메시지에만 표시
+            // DM: 시간 - 1분 이내 연속 메시지면 숨김
             if (nextMessage) {
               const currentTime = new Date(message.createdAt).getTime();
               const nextTime = new Date(nextMessage.createdAt).getTime();
@@ -76,7 +74,35 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
               const isSameUserAsNext = message.userId === nextMessage.userId ||
                 message.user.id === nextMessage.user.id;
 
-              // 다음 메시지가 같은 사용자가 보낸 것이고 1분(60000ms) 이내이면 시간 숨김
+              if (isSameUserAsNext && timeDiff <= 60000) {
+                showTime = false;
+              }
+            }
+          } else {
+            // 채널: 프로필과 이름 - 10분 이내 연속 메시지면 숨김
+            if (previousMessage) {
+              const currentTime = new Date(message.createdAt).getTime();
+              const prevTime = new Date(previousMessage.createdAt).getTime();
+              const timeDiff = currentTime - prevTime;
+              const isSameUserAsPrev = message.userId === previousMessage.userId ||
+                message.user.id === previousMessage.user.id;
+
+              // 10분(600000ms) 이내이고 같은 사용자면 프로필/이름 숨김
+              if (isSameUserAsPrev && timeDiff <= 600000) {
+                showAvatar = false;
+                showSenderName = false;
+              }
+            }
+            
+            // 채널: 시간 - 1분 이내 연속 메시지면 숨김
+            if (nextMessage) {
+              const currentTime = new Date(message.createdAt).getTime();
+              const nextTime = new Date(nextMessage.createdAt).getTime();
+              const timeDiff = nextTime - currentTime;
+              const isSameUserAsNext = message.userId === nextMessage.userId ||
+                message.user.id === nextMessage.user.id;
+
+              // 1분(60000ms) 이내이고 같은 사용자면 시간 숨김
               if (isSameUserAsNext && timeDiff <= 60000) {
                 showTime = false;
               }

@@ -104,28 +104,38 @@ export function MessageItem({ message, isOwnMessage, roomType, showTime = true, 
   // 개인 DM인 경우와 워크스페이스 채널인 경우를 구분
   const isDM = roomType === 'DM';
   
-  // 채널인 경우: 모든 메시지가 왼쪽에 프로필, 이름, 시간 표시
+  // 채널인 경우: 프로필, 이름, 시간 조건부 표시
   // DM인 경우: 기존 디자인 (본인은 오른쪽, 상대방은 왼쪽)
   if (!isDM) {
     return (
       <div className="chat-message chat-message-channel">
-        <div className="chat-message-avatar">
-          {message.user.profileImageUrl ? (
-            <img src={message.user.profileImageUrl} alt={message.user.name || message.user.email} />
-          ) : (
-            <div className="chat-message-avatar-placeholder"></div>
-          )}
-        </div>
-        <div className="chat-message-content">
-          <div className="chat-message-header">
-            <span className="chat-message-sender">
-              {message.user.name || message.user.email}
-            </span>
-            <span className="chat-message-time">
-              {formatTimeForDM(message.createdAt)}
-            </span>
+        {showAvatar ? (
+          <div className="chat-message-avatar">
+            {message.user.profileImageUrl ? (
+              <img src={message.user.profileImageUrl} alt={message.user.name || message.user.email} />
+            ) : (
+              <div className="chat-message-avatar-placeholder"></div>
+            )}
           </div>
-          <div className="chat-message-text">{message.content}</div>
+        ) : (
+          <div className="chat-message-avatar-spacer"></div>
+        )}
+        <div className="chat-message-content">
+          {showSenderName && (
+            <div className="chat-message-header">
+              <span className="chat-message-sender">
+                {message.user.name || message.user.email}
+              </span>
+            </div>
+          )}
+          <div className="chat-message-text-wrapper">
+            <div className="chat-message-text">{message.content}</div>
+            {showTime && (
+              <span className="chat-message-time">
+                {formatTimeForDM(message.createdAt)}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     );

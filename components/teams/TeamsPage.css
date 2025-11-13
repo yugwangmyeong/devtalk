@@ -12,6 +12,11 @@
   height: 100%;
   background-color: #1F2128;
   overflow: hidden;
+  /* 텍스트 선택 허용 */
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
 }
 
 /* Left Panel - Team List (when no team is selected) */
@@ -32,6 +37,11 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  /* 텍스트 선택 허용 */
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
 }
 
 /* Chat Area */
@@ -42,6 +52,11 @@
   flex-direction: column;
   overflow: hidden;
   position: relative;
+  /* 텍스트 선택 허용 */
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
 }
 
 /* ChatArea가 teams-chat-area 내부에서 제대로 작동하도록 */
