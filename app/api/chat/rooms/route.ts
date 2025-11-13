@@ -28,61 +28,69 @@ export async function GET(request: NextRequest) {
     // Get all chat rooms for the user
     console.log('[GET /api/chat/rooms] Fetching rooms for user:', decoded.userId);
     
-    const chatRooms = await prisma.chatRoomMember.findMany({
+    // First, get all room IDs the user is a member of
+    const userMemberships = await prisma.chatRoomMember.findMany({
       where: {
         userId: decoded.userId,
       },
+      select: {
+        chatRoomId: true,
+      },
+    });
+
+    const roomIds = userMemberships.map(m => m.chatRoomId);
+
+    // Then, fetch all rooms with their members and messages
+    const rooms = await prisma.chatRoom.findMany({
+      where: {
+        id: {
+          in: roomIds,
+        },
+      },
       include: {
-        chatRoom: {
+        members: {
           include: {
-            members: {
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    email: true,
-                    name: true,
-                    profileImageUrl: true,
-                  },
-                },
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                profileImageUrl: true,
               },
             },
-            messages: {
-              take: 1,
-              orderBy: {
-                createdAt: 'desc',
-              },
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    email: true,
-                    name: true,
-                    profileImageUrl: true,
-                  },
-                },
+          },
+        },
+        messages: {
+          take: 1,
+          orderBy: {
+            createdAt: 'desc',
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                profileImageUrl: true,
               },
             },
           },
         },
       },
       orderBy: {
-        chatRoom: {
-          updatedAt: 'desc',
-        },
+        updatedAt: 'desc',
       },
     });
 
     console.log('[GET /api/chat/rooms] Found rooms:', {
-      count: chatRooms.length,
-      roomIds: chatRooms.map(m => m.chatRoom.id),
-      roomTypes: chatRooms.map(m => m.chatRoom.type),
-      memberCounts: chatRooms.map(m => m.chatRoom.members.length),
+      count: rooms.length,
+      roomIds: rooms.map(r => r.id),
+      roomTypes: rooms.map(r => r.type),
+      memberCounts: rooms.map(r => r.members.length),
     });
 
     // Format the response
-    const formattedRooms = chatRooms.map((member) => {
-      const room = member.chatRoom;
+    const formattedRooms = rooms.map((room) => {
       const otherMembers = room.members
         .filter((m) => m.userId !== decoded.userId)
         .map((m) => m.user);
@@ -205,30 +213,79 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if DM room already exists
-    const existingRooms = await prisma.chatRoom.findMany({
+    // Check if DM room already exists between these two users
+    // More efficient: find rooms where both users are members
+    const existingRoomMemberships = await prisma.chatRoomMember.findMany({
       where: {
-        type: 'DM',
-        members: {
-          every: {
-            userId: {
-              in: [decoded.userId, finalOtherUserId],
-            },
-          },
+        userId: {
+          in: [decoded.userId, finalOtherUserId],
         },
       },
-      include: {
-        members: true,
+      select: {
+        chatRoomId: true,
+        userId: true,
       },
     });
 
-    // Check if there's a room with exactly these two users
-    const existingRoom = existingRooms.find(
-      (room) =>
-        room.members.length === 2 &&
-        room.members.some((m) => m.userId === decoded.userId) &&
-        room.members.some((m) => m.userId === finalOtherUserId)
-    );
+    // Group by roomId and find rooms with exactly 2 members (both users)
+    const roomMemberMap = new Map<string, Set<string>>();
+    existingRoomMemberships.forEach((membership) => {
+      if (!roomMemberMap.has(membership.chatRoomId)) {
+        roomMemberMap.set(membership.chatRoomId, new Set());
+      }
+      roomMemberMap.get(membership.chatRoomId)!.add(membership.userId);
+    });
+
+    // Find room IDs that have exactly these 2 users
+    const candidateRoomIds = Array.from(roomMemberMap.entries())
+      .filter(([_, userIds]) => userIds.size === 2 && userIds.has(decoded.userId) && userIds.has(finalOtherUserId))
+      .map(([roomId]) => roomId);
+
+    let existingRoom = null;
+    if (candidateRoomIds.length > 0) {
+      // Fetch the first matching room with full details
+      const rooms = await prisma.chatRoom.findMany({
+        where: {
+          id: {
+            in: candidateRoomIds,
+          },
+          type: 'DM',
+        },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  profileImageUrl: true,
+                },
+              },
+            },
+          },
+          messages: {
+            take: 1,
+            orderBy: {
+              createdAt: 'desc',
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  profileImageUrl: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Verify it has exactly 2 members
+      existingRoom = rooms.find((room) => room.members.length === 2);
+    }
 
     // Format room response (same format as GET)
     const formatRoom = (room: any) => {

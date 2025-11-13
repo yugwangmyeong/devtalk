@@ -13,13 +13,13 @@ export function MessageInput({ value, onChange, onSend, disabled }: MessageInput
       <div className="chat-input-container">
         <button className="chat-input-attach-button">
           <svg className="chat-input-attach-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
         </button>
         <input
           type="text"
           className="chat-input-field"
-          placeholder="메시지를 입력하세요..."
+          placeholder=""
           value={value}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
@@ -34,7 +34,6 @@ export function MessageInput({ value, onChange, onSend, disabled }: MessageInput
           className="chat-input-send-button"
           onClick={(e) => {
             e.preventDefault();
-            console.log('Send button clicked', { value, disabled });
             if (!disabled && value.trim()) {
               onSend();
             }

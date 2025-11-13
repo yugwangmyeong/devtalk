@@ -20,8 +20,11 @@ export function ChatRoomList({
   isLoading,
   onSelectRoom,
 }: ChatRoomListProps) {
-  // 개인 공간이 아닌 채팅방만 필터링
-  const otherRooms = rooms.filter((room) => !room.isPersonalSpace);
+  // 개인 공간이 아니고 DM 타입인 채팅방만 필터링 (GROUP, TEAM_CHANNEL 등 제외)
+  const otherRooms = rooms.filter((room) => 
+    !room.isPersonalSpace && 
+    room.type === 'DM'
+  );
 
   console.log('[ChatRoomList] Render:', {
     totalRooms: rooms.length,

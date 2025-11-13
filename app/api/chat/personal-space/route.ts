@@ -26,14 +26,25 @@ export async function GET(request: NextRequest) {
     }
 
     // Find existing personal space (DM room with only the user as member)
+    // More efficient: find rooms where user is a member, then filter by member count
+    const userMemberships = await prisma.chatRoomMember.findMany({
+      where: {
+        userId: decoded.userId,
+      },
+      select: {
+        chatRoomId: true,
+      },
+    });
+
+    const roomIds = userMemberships.map(m => m.chatRoomId);
+    
+    // Find DM rooms with exactly 1 member (personal space)
     const personalRoom = await prisma.chatRoom.findFirst({
       where: {
-        type: 'DM',
-        members: {
-          every: {
-            userId: decoded.userId,
-          },
+        id: {
+          in: roomIds,
         },
+        type: 'DM',
       },
       include: {
         members: {

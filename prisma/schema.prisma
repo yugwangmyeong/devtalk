@@ -26,6 +26,8 @@ model User {
   // Relations
   chatRooms      ChatRoomMember[]
   messages      Message[]
+  teams         TeamMember[]
+  createdTeams  Team[]    @relation("TeamCreator")
 
   @@map("users")
 }
@@ -35,12 +37,15 @@ model ChatRoom {
   id        String   @id @default(cuid())
   type      ChatRoomType @default(DM) // DM or GROUP
   name      String?  // For group chats
+  teamId    String?  // Optional: team this room belongs to (deprecated, use TeamChannel instead)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Relations
   members   ChatRoomMember[]
   messages  Message[]
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  teamChannel TeamChannel? // One-to-one relationship with TeamChannel
 
   @@map("chat_rooms")
 }
@@ -75,6 +80,64 @@ model Message {
 
   @@index([chatRoomId, createdAt])
   @@map("messages")
+}
+
+// Team model for workspace/team grouping
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  description String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  creatorId String   // User who created the team
+
+  // Relations
+  creator   User     @relation("TeamCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members   TeamMember[]
+  chatRooms ChatRoom[]
+  channels  TeamChannel[]
+
+  @@map("teams")
+}
+
+// TeamMember - many-to-many relationship between User and Team
+model TeamMember {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  role      TeamRole  @default(MEMBER)
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@map("team_members")
+}
+
+// TeamChannel model for team workspace channels
+model TeamChannel {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  teamId      String
+  chatRoomId  String   @unique // One-to-one with ChatRoom for messages
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  chatRoom    ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, name]) // Channel name must be unique within a team
+  @@map("team_channels")
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
 }
 
 enum ChatRoomType {

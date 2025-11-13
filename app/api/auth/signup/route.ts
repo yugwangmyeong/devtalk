@@ -53,6 +53,60 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Create default workspace/team for the user
+    const defaultTeamName = name?.trim() 
+      ? `${name.trim()}의 워크스페이스`
+      : `${email.trim().split('@')[0]}의 워크스페이스`;
+    
+    const defaultTeam = await prisma.team.create({
+      data: {
+        name: defaultTeamName,
+        description: '기본 워크스페이스',
+        creatorId: user.id,
+        members: {
+          create: {
+            userId: user.id,
+            role: 'OWNER',
+          },
+        },
+      },
+    });
+
+    // Create default "일반채널" for the team
+    try {
+      console.log('[Signup] Creating default channel for team:', defaultTeam.id);
+      const chatRoom = await prisma.chatRoom.create({
+        data: {
+          type: 'GROUP',
+          name: '일반채널',
+        },
+      });
+
+      console.log('[Signup] ChatRoom created:', chatRoom.id);
+
+      await prisma.teamChannel.create({
+        data: {
+          name: '일반채널',
+          teamId: defaultTeam.id,
+          chatRoomId: chatRoom.id,
+        },
+      });
+
+      console.log('[Signup] TeamChannel created');
+
+      await prisma.chatRoomMember.create({
+        data: {
+          userId: user.id,
+          chatRoomId: chatRoom.id,
+        },
+      });
+
+      console.log('[Signup] Channel member added');
+    } catch (error) {
+      console.error('[Signup] Failed to create default channel:', error);
+      // Continue even if channel creation fails - user and team are already created
+    }
+
     // Generate token
     const token = generateToken(user.id, user.email);
 

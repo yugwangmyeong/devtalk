@@ -1,0 +1,334 @@
+.team-channels-panel {
+  position: fixed;
+  left: 80px;
+  top: 0;
+  width: 250px;
+  background-color: #2B2E34;
+  border-right: 1px solid #949494;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+  z-index: 999;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.3);
+}
+
+/* TeamsPage에서 사용할 때는 일반 레이아웃으로 */
+.teams-channels-panel .team-channels-panel {
+  position: relative;
+  left: auto;
+  top: auto;
+  width: 100%;
+  height: 100%;
+  z-index: auto;
+  box-shadow: none;
+}
+
+.team-channels-header {
+  padding: 1rem;
+  border-bottom: 1px solid #374151;
+  background-color: #1f2937;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.team-channels-team-name {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.team-channels-close {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.2s, background-color 0.2s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.team-channels-close:hover {
+  color: white;
+  background-color: #374151;
+}
+
+.team-channels-team-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.team-channels-team-text {
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.team-channels-section {
+  border-bottom: 1px solid #374151;
+}
+
+.team-channels-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  user-select: none;
+  min-height: 40px;
+}
+
+.team-channels-section-header:hover {
+  background-color: #374151;
+}
+
+.team-channels-section-title {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.team-channels-section-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.team-channels-add-button {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.2s;
+  line-height: 1;
+  padding: 0;
+  border-radius: 4px;
+}
+
+.team-channels-add-button:hover {
+  color: white;
+  background-color: #4b5563;
+}
+
+.team-channels-expand-icon {
+  width: 16px;
+  height: 16px;
+  color: #9ca3af;
+  transition: transform 0.2s, color 0.2s;
+}
+
+.team-channels-expand-icon.expanded {
+  transform: rotate(180deg);
+}
+
+.team-channels-create-form {
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid #374151;
+}
+
+.team-channels-create-input {
+  width: 100%;
+  padding: 0.5rem;
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  transition: border-color 0.2s;
+}
+
+.team-channels-create-input:focus {
+  outline: none;
+  border-color: #6b7280;
+}
+
+.team-channels-create-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.team-channels-create-button {
+  padding: 0.25rem 0.75rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.team-channels-create-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.team-channels-create-button-cancel {
+  background-color: #374151;
+  color: white;
+}
+
+.team-channels-create-button-cancel:hover:not(:disabled) {
+  background-color: #4b5563;
+}
+
+.team-channels-create-button-submit {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.team-channels-create-button-submit:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.team-channels-error {
+  padding: 0.5rem 1rem;
+  background-color: #7f1d1d;
+  border-bottom: 1px solid #991b1b;
+  color: #fca5a5;
+  font-size: 0.75rem;
+}
+
+.team-channels-list {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+}
+
+/* 스크롤바 스타일링 */
+.team-channels-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.team-channels-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.team-channels-list::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 3px;
+}
+
+.team-channels-list::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+
+.team-channels-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+  position: relative;
+}
+
+.team-channels-item:hover {
+  background-color: #374151;
+  color: white;
+}
+
+.team-channels-item-selected {
+  background-color: #374151;
+  color: white;
+  border-left: 3px solid #3b82f6;
+  padding-left: calc(1rem - 3px);
+}
+
+.team-channels-item-selected .team-channels-item-prefix {
+  color: #3b82f6;
+}
+
+.team-channels-item-prefix {
+  color: #9ca3af;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.team-channels-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.team-channels-loading,
+.team-channels-empty {
+  padding: 0.5rem 1rem;
+  color: #6b7280;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.team-channels-dm-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.team-channels-dm-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.team-channels-dm-item:hover {
+  background-color: #374151;
+  color: white;
+}
+
+.team-channels-dm-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.team-channels-dm-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+

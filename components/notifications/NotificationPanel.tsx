@@ -56,14 +56,41 @@ export function NotificationPanel() {
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
 
+    // 10분 전까지는 상대 시간 표시
     if (diffMins < 1) return '방금 전';
-    if (diffMins < 60) return `${diffMins}분 전`;
-    if (diffHours < 24) return `${diffHours}시간 전`;
-    if (diffDays < 7) return `${diffDays}일 전`;
-    return date.toLocaleDateString('ko-KR');
+    if (diffMins < 10) return `${diffMins}분 전`;
+    
+    // 시간 포맷팅
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? '오후' : '오전';
+    const displayHours = hours % 12 || 12;
+    const displayMinutes = minutes.toString().padStart(2, '0');
+    const timeString = `${ampm} ${displayHours}:${displayMinutes}`;
+    
+    // 날짜 비교
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const messageDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    // 오늘인 경우
+    if (messageDate.getTime() === today.getTime()) {
+      return timeString;
+    }
+    
+    // 어제인 경우
+    if (messageDate.getTime() === yesterday.getTime()) {
+      return `어제 ${timeString}`;
+    }
+    
+    // 그 이전인 경우 날짜와 시간 표시
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    
+    return `${year}.${month}.${day} ${timeString}`;
   }, []);
 
   // 알림 타입별 아이콘

@@ -4,14 +4,26 @@ import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
+import { useTeamViewStore } from '@/stores/useTeamViewStore';
 import { ProfileEditModal } from './ProfileEditModal';
 import { NotificationPanel } from '@/components/notifications/NotificationPanel';
+import { TeamPanel } from '@/components/teams/TeamPanel';
+import { TeamChannelsPanel } from '@/components/teams/TeamChannelsPanel';
 import './css/MainLayout.css';
 
 export function Sidebar() {
   const router = useRouter();
   const { logout, user } = useAuthStore();
   const { unreadCount, togglePanel } = useNotificationStore();
+  const { 
+    isOpen: isTeamPanelOpen, 
+    isChannelsPanelOpen,
+    toggleTeamView, 
+    closeTeamView,
+    toggleChannelsPanel,
+    closeChannelsPanel,
+    selectedTeam
+  } = useTeamViewStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -52,10 +64,22 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="main-sidebar">
+    <>
+      <aside className="main-sidebar">
       {/* Team Button */}
-      <button className="main-team-button">
-        팀
+      <button 
+        className="main-team-button"
+        onClick={() => {
+          if (selectedTeam) {
+            // 워크스페이스가 선택되어 있으면 채널 패널 토글
+            toggleChannelsPanel();
+          } else {
+            // 워크스페이스가 없으면 워크스페이스 페이지로 이동
+            router.push('/teams');
+          }
+        }}
+      >
+        {selectedTeam ? selectedTeam.name[0]?.toUpperCase() || '팀' : '팀'}
       </button>
 
       {/* Navigation */}
@@ -156,7 +180,20 @@ export function Sidebar() {
 
       {/* Notification Panel */}
       <NotificationPanel />
-    </aside>
+
+        {/* Team Panel */}
+        <TeamPanel 
+          isOpen={isTeamPanelOpen}
+          onClose={closeTeamView}
+        />
+      </aside>
+
+      {/* Team Channels Panel */}
+      <TeamChannelsPanel 
+        isOpen={isChannelsPanelOpen}
+        onClose={closeChannelsPanel}
+      />
+    </>
   );
 }
 

@@ -2,6 +2,7 @@
 
 import './css/MainLayout.css';
 import { Sidebar } from './Sidebar';
+import { useTeamViewStore } from '@/stores/useTeamViewStore';
 
 interface MainLayoutProps {
   children: React.ReactNode;
@@ -9,6 +10,8 @@ interface MainLayoutProps {
 }
 
 export function MainLayout({ children, headerTitle = '메인화면' }: MainLayoutProps) {
+  const { selectedTeam } = useTeamViewStore();
+
   return (
     <div className="main-layout">
       {/* Left Sidebar */}
@@ -18,7 +21,9 @@ export function MainLayout({ children, headerTitle = '메인화면' }: MainLayou
       <main className="main-content">
         {/* Header */}
         <header className="main-header">
-          <h1 className="main-header-title">{headerTitle}</h1>
+          <h1 className="main-header-title">
+            {selectedTeam ? selectedTeam.name : headerTitle}
+          </h1>
         </header>
 
         {/* Content Area */}

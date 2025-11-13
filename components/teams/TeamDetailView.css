@@ -1,0 +1,352 @@
+.team-detail-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: #1F2128;
+  color: white;
+}
+
+.team-detail-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid #374151;
+  background-color: #2B2E34;
+}
+
+.team-detail-back {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0.5rem 0;
+  margin-bottom: 1rem;
+  transition: color 0.2s;
+}
+
+.team-detail-back:hover {
+  color: white;
+}
+
+.team-detail-title-section {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.team-detail-icon-large {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  background-color: #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.5rem;
+  flex-shrink: 0;
+}
+
+.team-detail-name {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: white;
+}
+
+.team-detail-meta {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.team-detail-role {
+  color: #3b82f6;
+  font-weight: 500;
+}
+
+.team-detail-separator {
+  color: #6b7280;
+}
+
+.team-detail-description-section {
+  padding: 1.5rem;
+  border-bottom: 1px solid #374151;
+  background-color: #2B2E34;
+}
+
+.team-detail-description {
+  margin: 0;
+  color: #e5e5e5;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.team-detail-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.team-detail-section {
+  margin-bottom: 2rem;
+}
+
+.team-detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.team-detail-section-title {
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: white;
+}
+
+.team-detail-members {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.team-detail-member-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.75rem;
+  background-color: #2B2E34;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  transition: border-color 0.2s;
+}
+
+.team-detail-member-item:hover {
+  border-color: #6b7280;
+}
+
+.team-detail-member-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.team-detail-member-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.team-detail-member-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.team-detail-member-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.team-detail-member-name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: white;
+  margin-bottom: 0.25rem;
+}
+
+.team-detail-member-role {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.team-detail-rooms {
+  padding: 1rem;
+  background-color: #2B2E34;
+  border: 1px solid #374151;
+  border-radius: 8px;
+}
+
+.team-detail-empty {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.team-detail-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.team-detail-add-channel {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1.25rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  line-height: 1;
+  padding: 0;
+}
+
+.team-detail-add-channel:hover {
+  background-color: #2563eb;
+}
+
+.team-detail-create-channel-form {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background-color: #2B2E34;
+  border: 1px solid #374151;
+  border-radius: 8px;
+}
+
+.team-detail-channel-input {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.875rem;
+  margin-bottom: 0.75rem;
+  transition: border-color 0.2s;
+}
+
+.team-detail-channel-input:focus {
+  outline: none;
+  border-color: #6b7280;
+}
+
+.team-detail-channel-form-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.team-detail-channel-form-button {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.team-detail-channel-form-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.team-detail-channel-form-button-cancel {
+  background-color: #374151;
+  color: white;
+}
+
+.team-detail-channel-form-button-cancel:hover:not(:disabled) {
+  background-color: #4b5563;
+}
+
+.team-detail-channel-form-button-submit {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.team-detail-channel-form-button-submit:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.team-detail-error {
+  padding: 0.75rem;
+  background-color: #7f1d1d;
+  border: 1px solid #991b1b;
+  border-radius: 4px;
+  color: #fca5a5;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.team-detail-channels {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.team-detail-channel-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background-color: #2B2E34;
+  border: 1px solid #374151;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.team-detail-channel-item:hover {
+  background-color: #374151;
+  border-color: #6b7280;
+}
+
+.team-detail-channel-prefix {
+  color: #9ca3af;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.team-detail-channel-name {
+  flex: 1;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.team-detail-channel-preview {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+/* 스크롤바 스타일링 */
+.team-detail-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.team-detail-content::-webkit-scrollbar-track {
+  background: #1f2937;
+}
+
+.team-detail-content::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 3px;
+}
+
+.team-detail-content::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+

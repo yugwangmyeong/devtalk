@@ -1,8 +1,18 @@
 'use client';
 
+import { useEffect } from 'react';
 import { MainLayout } from '@/components/layouts/MainLayout';
+import { useTeamViewStore } from '@/stores/useTeamViewStore';
 
 export function MainPage() {
+  const { selectTeam, closeChannelsPanel } = useTeamViewStore();
+
+  // 홈 페이지 진입 시 워크스페이스 선택 초기화
+  useEffect(() => {
+    selectTeam(null);
+    closeChannelsPanel();
+  }, [selectTeam, closeChannelsPanel]);
+
   return (
     <MainLayout headerTitle="메인화면">
       <div className="main-page-content">

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useSocketStore } from '@/stores/useSocketStore';
+import { useTeamViewStore } from '@/stores/useTeamViewStore';
 import { Sidebar } from '@/components/layouts/Sidebar';
 import { DMPanel } from './chat/DMPanel';
 import { ChatArea } from './chat/ChatArea';
@@ -13,8 +14,15 @@ import './css/ChatPage.css';
 export function ChatPage() {
   const { user, isLoading: isAuthLoading } = useAuthStore();
   const { socket, isConnected, isAuthenticated } = useSocketStore();
+  const { selectTeam, closeChannelsPanel } = useTeamViewStore();
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  // 채팅 페이지 진입 시 워크스페이스 선택 초기화
+  useEffect(() => {
+    selectTeam(null);
+    closeChannelsPanel();
+  }, [selectTeam, closeChannelsPanel]);
 
   // Socket 연결 상태 모니터링
   useEffect(() => {
@@ -31,13 +39,15 @@ export function ChatPage() {
   const [messageInput, setMessageInput] = useState('');
   const [isLoadingRooms, setIsLoadingRooms] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [hasFetchedRooms, setHasFetchedRooms] = useState(false);
 
   // Fetch chat rooms and ensure personal space exists
   useEffect(() => {
     console.log('[ChatPage] useEffect dependency changed:', {
       user: user ? user.email : null,
       isAuthLoading,
-      hasUser: !!user
+      hasUser: !!user,
+      hasFetchedRooms,
     });
 
     // 인증 로딩 중이거나 user가 없으면 기다림
@@ -49,15 +59,23 @@ export function ChatPage() {
     if (!user) {
       console.log('[ChatPage] No user, skipping fetch');
       setIsLoadingRooms(false);
+      setHasFetchedRooms(false);
+      return;
+    }
+
+    // 이미 방을 가져왔고, user가 변경되지 않았다면 다시 가져오지 않음
+    // (searchParams나 router 변경은 무시)
+    if (hasFetchedRooms) {
+      console.log('[ChatPage] Rooms already fetched, skipping');
       return;
     }
 
     const fetchRooms = async () => {
+      setHasFetchedRooms(true);
       console.log('[ChatPage] fetchRooms called, user:', user.email);
 
       try {
-        const roomIdFromUrl = searchParams.get('roomId');
-        console.log('[ChatPage] Starting to fetch rooms, roomIdFromUrl:', roomIdFromUrl);
+        console.log('[ChatPage] Starting to fetch rooms');
 
         // 먼저 개인 공간이 존재하는지 확인 (생성/확인용)
         // 이 API는 개인 공간이 없으면 생성함
@@ -83,18 +101,8 @@ export function ChatPage() {
                 }
               });
 
-              // URL에 roomId가 없거나 개인 공간이면 개인 공간 선택
-              // 이렇게 하면 새로고침 시 즉시 개인 공간이 선택됨
-              if (!roomIdFromUrl || roomIdFromUrl === personalSpaceRoom.id) {
-                setSelectedRoom(personalSpaceRoom);
-                // URL이 없으면 개인 공간으로 설정
-                if (!roomIdFromUrl) {
-                  router.replace(`/chat?roomId=${personalSpaceRoom.id}`);
-                }
-              } else {
-                // URL에 다른 roomId가 있으면, 나중에 모든 채팅방을 로드한 후 선택됨
-                console.log('[ChatPage] URL has roomId, will select after loading all rooms');
-              }
+              // 개인 공간을 기본으로 선택 (URL 처리는 별도 useEffect에서)
+              setSelectedRoom(personalSpaceRoom);
             }
           } else {
             const errorData = await personalSpaceResponse.json().catch(() => ({}));
@@ -158,31 +166,20 @@ export function ChatPage() {
         const finalPersonalSpaceRoom = allRooms.find((r: ChatRoom) => r.isPersonalSpace) || personalSpaceRoom;
         console.log('[ChatPage] Final personal space room:', finalPersonalSpaceRoom?.id, finalPersonalSpaceRoom?.name);
 
-        // URL에서 roomId 읽어서 채팅방 선택
+        // URL에서 roomId 읽어서 채팅방 선택 (없으면 개인 공간)
+        const roomIdFromUrl = new URL(window.location.href).searchParams.get('roomId');
         if (roomIdFromUrl) {
-          // rooms 배열에서 찾기
-          const roomToSelect = allRooms.find((r: ChatRoom) => r.id === roomIdFromUrl);
-          console.log('[ChatPage] Room to select from URL:', roomToSelect?.id, roomToSelect?.name);
-
+          const roomToSelect = allRooms.find((r: ChatRoom) => r.id === roomIdFromUrl && (r.isPersonalSpace || r.type === 'DM'));
           if (roomToSelect) {
-            // 채팅방 목록 설정과 동시에 선택된 채팅방 설정
             setSelectedRoom(roomToSelect);
-            console.log('[ChatPage] Selected room:', roomToSelect.id);
-          } else {
-            console.log('[ChatPage] Room not found in URL, falling back to personal space');
-            // 채팅방을 찾을 수 없으면 개인 공간으로 폴백
-            if (finalPersonalSpaceRoom) {
-              setSelectedRoom(finalPersonalSpaceRoom);
-              router.replace(`/chat?roomId=${finalPersonalSpaceRoom.id}`);
-            }
-          }
-        } else {
-          // URL에 roomId가 없으면 개인 공간을 기본으로 선택
-          if (finalPersonalSpaceRoom) {
-            console.log('[ChatPage] No roomId in URL, selecting personal space');
+            console.log('[ChatPage] Selected room from URL:', roomToSelect.id);
+          } else if (finalPersonalSpaceRoom) {
             setSelectedRoom(finalPersonalSpaceRoom);
             router.replace(`/chat?roomId=${finalPersonalSpaceRoom.id}`);
           }
+        } else if (finalPersonalSpaceRoom) {
+          setSelectedRoom(finalPersonalSpaceRoom);
+          router.replace(`/chat?roomId=${finalPersonalSpaceRoom.id}`);
         }
       } catch (error) {
         console.error('[ChatPage] Failed to fetch rooms:', error);
@@ -193,9 +190,25 @@ export function ChatPage() {
       }
     };
 
-    // user가 로드된 후에만 실행
+    // user가 로드된 후에만 실행 (한 번만)
     fetchRooms();
-  }, [user, isAuthLoading, searchParams, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, isAuthLoading]); // hasFetchedRooms는 내부에서 관리하므로 dependency 제외
+
+  // URL의 roomId가 변경될 때만 선택된 방 업데이트 (방 목록은 다시 가져오지 않음)
+  useEffect(() => {
+    if (!rooms.length || !searchParams.get('roomId')) {
+      return;
+    }
+
+    const roomIdFromUrl = searchParams.get('roomId');
+    const roomToSelect = rooms.find((r: ChatRoom) => r.id === roomIdFromUrl && (r.isPersonalSpace || r.type === 'DM'));
+    
+    if (roomToSelect && selectedRoom?.id !== roomToSelect.id) {
+      console.log('[ChatPage] URL roomId changed, selecting room:', roomToSelect.id);
+      setSelectedRoom(roomToSelect);
+    }
+  }, [searchParams, rooms, selectedRoom?.id]);
 
 
   // Fetch messages when room is selected

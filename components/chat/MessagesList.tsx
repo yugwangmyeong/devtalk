@@ -9,9 +9,10 @@ interface MessagesListProps {
   currentUserId: string | undefined;
   isLoading: boolean;
   isPersonalSpace?: boolean;
+  roomType: string;
 }
 
-export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpace }: MessagesListProps) {
+export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpace, roomType }: MessagesListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
               key={message.id}
               message={message}
               isOwnMessage={isOwnMessage}
+              roomType={roomType}
             />
           );
         })
