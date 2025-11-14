@@ -699,6 +699,7 @@
   /* 프로필/이름과 정렬을 위한 들여쓰기 - 이름이 있는 경우와 동일한 위치 */
   margin-left: 0;
   word-wrap: break-word;
+  text-indent: 0;
 }
 
 .chat-message-avatar {
@@ -722,8 +723,8 @@
 }
 
 .chat-message-avatar-spacer {
-  width: 16px;
-  height: 16px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
 }
 
@@ -754,7 +755,7 @@
 .chat-message-text-wrapper {
   display: flex;
   align-items: flex-end;
-
+  gap: 0.5rem;
 }
 
 .chat-message-text {
@@ -773,11 +774,13 @@
   -webkit-user-select: text;
   -moz-user-select: text;
   -ms-user-select: text;
+  text-indent: 0.1em;
 }
 
 .chat-message-own .chat-message-text {
   background-color: #3b82f6;
   color: white;
+  text-indent: 0.1em;
 }
 
 .chat-message-time {
@@ -792,6 +795,7 @@
   white-space: nowrap;
   flex-shrink: 0;
   padding-bottom: 0.25rem;
+
   line-height: 1;
 }
 
@@ -833,4 +837,3 @@
 .chat-input-send-button:disabled:hover {
   opacity: 0.3;
 }
-
