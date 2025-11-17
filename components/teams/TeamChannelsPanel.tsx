@@ -37,6 +37,12 @@ export function TeamChannelsPanel({
   const [showCreateChannelForm, setShowCreateChannelForm] = useState(false);
   const [channelName, setChannelName] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Array<{ id: string; email: string; name: string | null; profileImageUrl: string | null }>>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [invitingUserId, setInvitingUserId] = useState<string | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Use external props if provided, otherwise use internal state
@@ -169,6 +175,112 @@ export function TeamChannelsPanel({
     }
   };
 
+  // Search users
+  const handleSearchUsers = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await fetch(`/api/users/search?q=${encodeURIComponent(query.trim())}`, {
+        credentials: 'include', // Include cookies for authentication
+      });
+      if (response.ok) {
+        const data = await response.json();
+        // Filter out users who are already team members
+        const existingMemberIds = new Set(selectedTeam?.members.map(m => m.id) || []);
+        const filteredUsers = (data.users || []).filter((u: any) => !existingMemberIds.has(u.id));
+        setSearchResults(filteredUsers);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (error) {
+      console.error('Failed to search users:', error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Handle search input change
+  const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    handleSearchUsers(value);
+  };
+
+  // Invite user to team
+  const handleInviteUser = async (userId: string) => {
+    if (!selectedTeam) {
+      console.error('[TeamChannelsPanel] Cannot invite: selectedTeam is null');
+      setError('팀이 선택되지 않았습니다.');
+      return;
+    }
+
+    console.log('[TeamChannelsPanel] Inviting user:', { userId, teamId: selectedTeam.id });
+    setIsInviting(true);
+    setInvitingUserId(userId);
+    setError(null);
+
+    try {
+      const url = `/api/teams/${selectedTeam.id}/members`;
+      console.log('[TeamChannelsPanel] Sending invite request to:', url);
+      
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include', // Include cookies for authentication
+        body: JSON.stringify({ userId }),
+      });
+
+      console.log('[TeamChannelsPanel] Response status:', response.status, response.statusText);
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[TeamChannelsPanel] Invite successful:', data);
+        
+        // Refresh team data if needed
+        setSearchQuery('');
+        setSearchResults([]);
+        setShowInviteModal(false);
+        setError(null);
+        
+        // Refresh channels if needed
+        if (externalChannels === undefined) {
+          fetchChannels();
+        } else if (onChannelCreated) {
+          onChannelCreated();
+        }
+      } else {
+        let errorMessage = '초대에 실패했습니다.';
+        try {
+          const errorData = await response.json();
+          console.error('[TeamChannelsPanel] Invite failed:', {
+            status: response.status,
+            statusText: response.statusText,
+            error: errorData,
+          });
+          errorMessage = errorData.error || errorMessage;
+        } catch (parseError) {
+          console.error('[TeamChannelsPanel] Failed to parse error response:', parseError);
+          errorMessage = `초대에 실패했습니다. (상태 코드: ${response.status})`;
+        }
+        setError(errorMessage);
+      }
+    } catch (error) {
+      console.error('[TeamChannelsPanel] Failed to invite user:', error);
+      const errorMessage = error instanceof Error ? error.message : '초대에 실패했습니다.';
+        setError(`네트워크 오류: ${errorMessage}`);
+    } finally {
+      setIsInviting(false);
+      setInvitingUserId(null);
+    }
+  };
+
   if (!isOpen || !selectedTeam) {
     return null;
   }
@@ -177,7 +289,17 @@ export function TeamChannelsPanel({
     <div className="team-channels-panel" ref={panelRef}>
       {/* Team Header */}
       <div className="team-channels-header">
-        <div className="team-channels-team-name">
+        <div 
+          className="team-channels-team-name"
+          onClick={() => {
+            // Only OWNER and ADMIN can invite
+            const userRole = selectedTeam?.role;
+            if (userRole === 'OWNER' || userRole === 'ADMIN') {
+              setShowInviteModal(true);
+            }
+          }}
+          style={{ cursor: (selectedTeam?.role === 'OWNER' || selectedTeam?.role === 'ADMIN') ? 'pointer' : 'default' }}
+        >
           <span className="team-channels-team-icon">
             {selectedTeam.name[0]?.toUpperCase() || 'T'}
           </span>
@@ -324,6 +446,79 @@ export function TeamChannelsPanel({
           </div>
         )}
       </div>
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <div className="team-invite-modal-overlay" onClick={() => setShowInviteModal(false)}>
+          <div className="team-invite-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="team-invite-modal-header">
+              <h3 className="team-invite-modal-title">멤버 초대</h3>
+              <button
+                className="team-invite-modal-close"
+                onClick={() => {
+                  setShowInviteModal(false);
+                  setSearchQuery('');
+                  setSearchResults([]);
+                  setError(null);
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="team-invite-modal-content">
+              <div className="team-invite-search">
+                <input
+                  type="text"
+                  className="team-invite-search-input"
+                  placeholder="이메일 또는 이름으로 검색..."
+                  value={searchQuery}
+                  onChange={handleSearchInputChange}
+                  autoFocus
+                />
+              </div>
+              {error && (
+                <div className="team-invite-error">
+                  {error}
+                </div>
+              )}
+              <div className="team-invite-results">
+                {isSearching ? (
+                  <div className="team-invite-loading">검색 중...</div>
+                ) : searchResults.length === 0 && searchQuery.trim() ? (
+                  <div className="team-invite-empty">검색 결과가 없습니다.</div>
+                ) : searchResults.length > 0 ? (
+                  searchResults.map((user) => (
+                    <div
+                      key={user.id}
+                      className="team-invite-user-item"
+                      onClick={() => handleInviteUser(user.id)}
+                    >
+                      <div className="team-invite-user-avatar">
+                        {user.profileImageUrl ? (
+                          <img src={user.profileImageUrl} alt={user.name || user.email} />
+                        ) : (
+                          <div className="team-invite-user-avatar-placeholder">
+                            {user.name?.[0]?.toUpperCase() || user.email[0]?.toUpperCase() || 'U'}
+                          </div>
+                        )}
+                      </div>
+                      <div className="team-invite-user-info">
+                        <div className="team-invite-user-name">{user.name || user.email}</div>
+                        {user.name && <div className="team-invite-user-email">{user.email}</div>}
+                      </div>
+                      {isInviting && invitingUserId === user.id && (
+                        <div className="team-invite-loading-small">초대 중...</div>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="team-invite-empty">이메일 또는 이름을 입력하여 검색하세요.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

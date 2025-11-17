@@ -1,4 +1,4 @@
-export type NotificationType = 'chat_invite' | 'message' | 'room_created' | 'user_joined';
+export type NotificationType = 'chat_invite' | 'message' | 'room_created' | 'user_joined' | 'team_invite';
 
 export interface Notification {
   id: string;
@@ -7,6 +7,8 @@ export interface Notification {
   message: string;
   roomId?: string;
   userId?: string;
+  teamId?: string;
+  teamName?: string;
   createdAt: string;
   read: boolean;
   user?: {

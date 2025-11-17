@@ -220,16 +220,24 @@ export async function POST(
       );
     }
 
+    // Get all team members to add them to the new channel
+    const teamMembers = await prisma.teamMember.findMany({
+      where: { teamId: teamId },
+      select: { userId: true },
+    });
+
+    const teamMemberIds = teamMembers.map(tm => tm.userId);
+
     // Create new channel (TeamChannel with ChatRoom) for the team
-    // Add creator as a member automatically
+    // Add all team members to the channel automatically
     const chatRoom = await prisma.chatRoom.create({
       data: {
         type: 'GROUP',
         name: name.trim(),
         members: {
-          create: {
-            userId: decoded.userId,
-          },
+          create: teamMemberIds.map(userId => ({
+            userId: userId,
+          })),
         },
       },
     });

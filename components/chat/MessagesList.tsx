@@ -94,7 +94,8 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
               }
             }
             
-            // 채널: 시간 - 1분 이내 연속 메시지면 숨김
+            // 채널: 같은 사용자가 1분 이내에 보낸 연속 메시지 중 첫 번째에만 시간 표시
+            // 다음 메시지가 같은 사용자가 1분 이내에 보낸 메시지면 시간 숨김
             if (nextMessage) {
               const currentTime = new Date(message.createdAt).getTime();
               const nextTime = new Date(nextMessage.createdAt).getTime();
@@ -102,7 +103,7 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
               const isSameUserAsNext = message.userId === nextMessage.userId ||
                 message.user.id === nextMessage.user.id;
 
-              // 1분(60000ms) 이내이고 같은 사용자면 시간 숨김
+              // 같은 사용자가 1분(60000ms) 이내에 보낸 메시지면 시간 숨김 (첫 번째만 표시)
               if (isSameUserAsNext && timeDiff <= 60000) {
                 showTime = false;
               }
@@ -119,6 +120,7 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
               showAvatar={showAvatar}
               showSenderName={showSenderName}
               previousMessage={previousMessage}
+              nextMessage={nextMessage}
             />
           );
         })

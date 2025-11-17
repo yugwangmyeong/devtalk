@@ -44,6 +44,24 @@ export interface ServerToClientEvents {
     };
     updatedAt: string;
   }) => void;
+  notification: (data: {
+    id: string;
+    type: string;
+    title: string;
+    message: string;
+    teamId?: string;
+    teamName?: string;
+    roomId?: string;
+    userId?: string;
+    createdAt: string;
+    read: boolean;
+    user?: {
+      id: string;
+      email: string;
+      name: string | null;
+      profileImageUrl: string | null;
+    };
+  }) => void;
   error: (data: { message: string }) => void;
 }
 

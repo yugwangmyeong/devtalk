@@ -671,6 +671,15 @@
   margin-bottom: 0;
 }
 
+.chat-message-channel .chat-message-header .chat-message-time {
+  font-size: 0.75rem;
+  color: #6b7280;
+  padding: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+  line-height: 1.6;
+}
+
 /* 채널 메시지 텍스트와 시간을 같은 줄에 배치 */
 .chat-message-channel .chat-message-text-wrapper {
   display: flex;

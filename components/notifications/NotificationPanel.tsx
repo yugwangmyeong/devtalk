@@ -39,6 +39,11 @@ export function NotificationPanel() {
   // 알림 클릭 핸들러
   const handleNotificationClick = useCallback(
     (notification: Notification) => {
+      // team_invite 알림은 클릭해도 이동하지 않음 (버튼으로 처리)
+      if (notification.type === 'team_invite') {
+        return;
+      }
+
       markAsRead(notification.id);
 
       // 채팅방 알림인 경우 해당 채팅방으로 이동
@@ -46,8 +51,54 @@ export function NotificationPanel() {
         router.push(`/chat?roomId=${notification.roomId}`);
         closePanel();
       }
+      // 팀 초대 알림인 경우 팀 페이지로 이동
+      else if (notification.teamId) {
+        router.push(`/teams?teamId=${notification.teamId}`);
+        closePanel();
+      }
     },
     [markAsRead, router, closePanel]
+  );
+
+  // 초대 수락 핸들러
+  const handleAcceptInvite = useCallback(
+    async (notification: Notification) => {
+      if (!notification.teamId) return;
+
+      markAsRead(notification.id);
+      removeNotification(notification.id);
+
+      // 이미 멤버로 추가되어 있으므로 팀 페이지로 이동
+      router.push(`/teams?teamId=${notification.teamId}`);
+      closePanel();
+    },
+    [markAsRead, removeNotification, router, closePanel]
+  );
+
+  // 초대 거절 핸들러
+  const handleRejectInvite = useCallback(
+    async (notification: Notification) => {
+      if (!notification.teamId) return;
+
+      try {
+        const response = await fetch(`/api/teams/${notification.teamId}/members/reject`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          markAsRead(notification.id);
+          removeNotification(notification.id);
+        } else {
+          const errorData = await response.json();
+          alert(errorData.error || '초대 거절에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('Failed to reject invite:', error);
+        alert('초대 거절에 실패했습니다.');
+      }
+    },
+    [markAsRead, removeNotification]
   );
 
   // 시간 포맷팅 헬퍼 함수
@@ -127,6 +178,12 @@ export function NotificationPanel() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
         );
+      case 'team_invite':
+        return (
+          <svg {...iconProps}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          </svg>
+        );
       default:
         return null;
     }
@@ -159,7 +216,7 @@ export function NotificationPanel() {
             {notifications.map((notification) => (
               <div
                 key={notification.id}
-                className={`notification-item ${!notification.read ? 'unread' : ''}`}
+                className={`notification-item ${!notification.read ? 'unread' : ''} ${notification.type === 'team_invite' ? 'notification-item-invite' : ''}`}
                 onClick={() => handleNotificationClick(notification)}
               >
                 <div className="notification-item-icon">
@@ -170,7 +227,37 @@ export function NotificationPanel() {
                     <span className="notification-item-title">{notification.title}</span>
                     {!notification.read && <span className="notification-dot" aria-label="읽지 않음" />}
                   </div>
-                  <p className="notification-item-message">{notification.message}</p>
+                  <p className="notification-item-message">
+                    {notification.type === 'team_invite' && notification.teamName ? (
+                      <>
+                        <strong className="notification-team-name">"{notification.teamName}"</strong> 워크스페이스에 초대받았습니다.
+                      </>
+                    ) : (
+                      notification.message
+                    )}
+                  </p>
+                  {notification.type === 'team_invite' && (
+                    <div className="notification-invite-actions">
+                      <button
+                        className="notification-invite-accept"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAcceptInvite(notification);
+                        }}
+                      >
+                        수락
+                      </button>
+                      <button
+                        className="notification-invite-reject"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRejectInvite(notification);
+                        }}
+                      >
+                        거절
+                      </button>
+                    </div>
+                  )}
                   <span className="notification-item-time">
                     {formatTime(notification.createdAt)}
                   </span>

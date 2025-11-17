@@ -18,8 +18,10 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
       const decoded = verifyToken(data.token);
       if (decoded) {
         socket.userId = decoded.userId;
+        // Join user's personal room for notifications
+        socket.join(decoded.userId);
         socket.emit('authenticated', { success: true });
-        console.log(`[Socket] Socket ${socket.id} authenticated as user ${decoded.userId}`);
+        console.log(`[Socket] Socket ${socket.id} authenticated as user ${decoded.userId} and joined user room`);
       } else {
         console.error('[Socket] Authentication failed: Invalid token');
         socket.emit('authenticated', { success: false, error: 'Invalid token' });
