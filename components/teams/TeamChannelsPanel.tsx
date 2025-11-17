@@ -491,7 +491,13 @@ export function TeamChannelsPanel({
                     }}
                     style={{ cursor: onPersonalSpaceClick ? 'pointer' : 'default' }}
                   >
-                    <input type="checkbox" className="team-channels-dm-checkbox" />
+                    <div className="team-channels-dm-avatar">
+                      {user.profileImageUrl ? (
+                        <img src={user.profileImageUrl} alt={user.name || user.email || '사용자'} />
+                      ) : (
+                        <div className="team-channels-dm-avatar-placeholder"></div>
+                      )}
+                    </div>
                     <span className="team-channels-dm-name">
                       {user.name || user.email}(나)
                     </span>
@@ -512,7 +518,13 @@ export function TeamChannelsPanel({
                       }}
                       style={{ cursor: onDMClick ? 'pointer' : 'default' }}
                     >
-                      <input type="checkbox" className="team-channels-dm-checkbox" />
+                      <div className="team-channels-dm-avatar">
+                        {member.profileImageUrl ? (
+                          <img src={member.profileImageUrl} alt={member.name || member.email || '사용자'} />
+                        ) : (
+                          <div className="team-channels-dm-avatar-placeholder"></div>
+                        )}
+                      </div>
                       <span className="team-channels-dm-name">
                         {member.name || member.email}
                         {member.role === 'OWNER' && ' 👑'}

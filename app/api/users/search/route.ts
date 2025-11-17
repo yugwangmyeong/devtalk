@@ -24,8 +24,32 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
     const query = searchParams.get('q');
 
+    // If userId is provided, return that specific user
+    if (userId) {
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          profileImageUrl: true,
+        },
+      });
+
+      if (!user) {
+        return NextResponse.json(
+          { error: '사용자를 찾을 수 없습니다.' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({ user }, { status: 200 });
+    }
+
+    // Otherwise, search by query
     if (!query || query.trim().length === 0) {
       return NextResponse.json(
         { error: '검색어를 입력해주세요.' },

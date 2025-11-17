@@ -227,20 +227,58 @@ export function NotificationPanel() {
           </div>
         ) : (
           <div className="notification-list">
-            {notifications.map((notification) => (
+            {notifications.map((notification) => {
+              // 디버깅: 메시지 알림의 경우 사용자 정보 확인
+              if (notification.type === 'message') {
+                console.log('[NotificationPanel] Rendering message notification:', {
+                  id: notification.id,
+                  userId: notification.user?.id,
+                  profileImageUrl: notification.user?.profileImageUrl,
+                  profileImageUrlType: typeof notification.user?.profileImageUrl,
+                  hasUser: !!notification.user,
+                  userObject: notification.user,
+                });
+              }
+              
+              return (
               <div
                 key={notification.id}
                 className={`notification-item ${!notification.read ? 'unread' : ''} ${notification.type === 'team_invite' ? 'notification-item-invite' : ''}`}
                 onClick={() => handleNotificationClick(notification)}
               >
-                <div className="notification-item-icon">
-                  {getNotificationIcon(notification.type)}
-                </div>
+                {notification.type === 'message' ? (
+                  <div className="notification-item-avatar">
+                    {notification.user?.profileImageUrl ? (
+                      <img 
+                        src={notification.user.profileImageUrl} 
+                        alt={notification.user.name || notification.user.email || '사용자'}
+                        onError={(e) => {
+                          console.error('[NotificationPanel] Failed to load profile image:', notification.user?.profileImageUrl);
+                          e.currentTarget.style.display = 'none';
+                          e.currentTarget.nextElementSibling?.classList.add('show');
+                        }}
+                        onLoad={() => {
+                          console.log('[NotificationPanel] Profile image loaded successfully:', notification.user?.profileImageUrl);
+                        }}
+                      />
+                    ) : null}
+                    <div className={`notification-item-avatar-placeholder ${!notification.user?.profileImageUrl ? 'show' : ''}`}></div>
+                  </div>
+                ) : (
+                  <div className="notification-item-icon">
+                    {getNotificationIcon(notification.type)}
+                  </div>
+                )}
                 <div className="notification-item-content">
                   <div className="notification-item-header">
                     <span className="notification-item-title">{notification.title}</span>
                     {!notification.read && <span className="notification-dot" aria-label="읽지 않음" />}
                   </div>
+                  {notification.type === 'message' && notification.roomName && (
+                    <div className="notification-room-info">
+                      {notification.roomName}
+                    </div>
+                  )}
                   <p className="notification-item-message">
                     {notification.type === 'team_invite' && notification.teamName ? (
                       <>
@@ -287,7 +325,8 @@ export function NotificationPanel() {
                   ×
                 </button>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

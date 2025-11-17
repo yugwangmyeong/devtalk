@@ -30,6 +30,125 @@ export async function GET(request: NextRequest) {
     
     // Optional filter by room type (DM, GROUP, etc.)
     const typeFilter = request.nextUrl.searchParams.get('type');
+    // Optional: get specific room by roomId (for notifications)
+    const roomIdParam = request.nextUrl.searchParams.get('roomId');
+    
+    // If roomId is provided, fetch only that room
+    if (roomIdParam) {
+      // Verify user is a member of the room
+      const member = await prisma.chatRoomMember.findUnique({
+        where: {
+          userId_chatRoomId: {
+            userId: decoded.userId,
+            chatRoomId: roomIdParam,
+          },
+        },
+      });
+
+      if (!member) {
+        return NextResponse.json(
+          { error: '이 채팅방의 멤버가 아닙니다.' },
+          { status: 403 }
+        );
+      }
+
+      // Fetch the specific room
+      const room = await prisma.chatRoom.findUnique({
+        where: { id: roomIdParam },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  profileImageUrl: true,
+                },
+              },
+            },
+          },
+          messages: {
+            take: 1,
+            orderBy: {
+              createdAt: 'desc',
+            },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  profileImageUrl: true,
+                },
+              },
+            },
+          },
+          teamChannel: {
+            select: {
+              id: true,
+              name: true,
+              teamId: true,
+            },
+          },
+        },
+      });
+
+      if (!room) {
+        return NextResponse.json(
+          { error: '채팅방을 찾을 수 없습니다.' },
+          { status: 404 }
+        );
+      }
+
+      // Format the response (same format as below)
+      const otherMembers = room.members
+        .filter((m) => m.userId !== decoded.userId)
+        .map((m) => m.user);
+
+      const isPersonalSpace = room.type === 'DM' && room.members.length === 1;
+
+      const roomName = isPersonalSpace
+        ? '나만의 공간'
+        : room.type === 'DM' && otherMembers.length > 0
+        ? otherMembers[0].name || otherMembers[0].email
+        : room.name || '채팅방';
+
+      const lastMessage = room.messages[0];
+      const formattedRoom = {
+        id: room.id,
+        type: room.type,
+        name: roomName,
+        isPersonalSpace,
+        teamChannel: room.teamChannel ? {
+          id: room.teamChannel.id,
+          name: room.teamChannel.name,
+          teamId: room.teamChannel.teamId,
+        } : null,
+        members: room.members.map((m) => ({
+          id: m.user.id,
+          email: m.user.email,
+          name: m.user.name,
+          profileImageUrl: m.user.profileImageUrl,
+        })),
+        lastMessage: lastMessage
+          ? {
+              id: lastMessage.id,
+              content: lastMessage.content,
+              createdAt: lastMessage.createdAt.toISOString(),
+              user: {
+                id: lastMessage.user.id,
+                email: lastMessage.user.email,
+                name: lastMessage.user.name,
+              },
+            }
+          : null,
+        updatedAt: room.updatedAt.toISOString(),
+        createdAt: room.createdAt.toISOString(),
+      };
+
+      return NextResponse.json({ rooms: [formattedRoom] }, { status: 200 });
+    }
     
     // First, get all room IDs the user is a member of
     const userMemberships = await prisma.chatRoomMember.findMany({
@@ -164,6 +283,11 @@ export async function GET(request: NextRequest) {
         type: room.type,
         name: roomName,
         isPersonalSpace,
+        teamChannel: room.teamChannel ? {
+          id: room.teamChannel.id,
+          name: room.teamChannel.name,
+          teamId: room.teamChannel.teamId,
+        } : null,
         members: room.members.map((m) => ({
           id: m.user.id,
           email: m.user.email,

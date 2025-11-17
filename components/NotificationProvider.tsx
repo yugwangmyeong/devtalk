@@ -47,6 +47,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           id: string;
           email: string;
           name: string | null;
+          profileImageUrl: string | null;
         };
       };
       updatedAt: string;
@@ -61,44 +62,132 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         isOwnMessage,
         isCurrentRoom,
         shouldNotify: !isOwnMessage && !isCurrentRoom,
+        userProfileImageUrl: data.lastMessage.user.profileImageUrl,
+        userData: data.lastMessage.user,
+        hasProfileImageUrl: 'profileImageUrl' in data.lastMessage.user,
+        userKeys: Object.keys(data.lastMessage.user),
       });
 
       // 알림 조건: 본인 메시지가 아니고, 현재 보고 있는 방이 아닐 때
       if (!isOwnMessage && !isCurrentRoom) {
-        // 채팅방 이름은 알림 생성 시점에 동적으로 가져오기
-        const getRoomName = async (roomId: string): Promise<string> => {
+        // 채팅방 정보와 워크스페이스 정보를 알림 생성 시점에 동적으로 가져오기
+        const getRoomInfo = async (roomId: string): Promise<{ teamName: string; roomName: string }> => {
           try {
-            const response = await fetch('/api/chat/rooms');
+            console.log('[NotificationProvider] Fetching room info for roomId:', roomId);
+            // roomId로 직접 조회 (팀 채널 포함)
+            const response = await fetch(`/api/chat/rooms?roomId=${roomId}`);
             if (response.ok) {
               const data = await response.json();
-              const room = data.rooms?.find((r: any) => r.id === roomId);
-              if (!room) return '알 수 없음';
+              const room = data.rooms?.[0]; // roomId로 조회하면 배열의 첫 번째 요소
               
+              console.log('[NotificationProvider] Found room:', {
+                roomId,
+                found: !!room,
+                room: room ? {
+                  id: room.id,
+                  type: room.type,
+                  name: room.name,
+                  isPersonalSpace: room.isPersonalSpace,
+                  hasTeamChannel: !!room.teamChannel,
+                  teamChannel: room.teamChannel,
+                } : null,
+              });
+              
+              if (!room) {
+                console.warn('[NotificationProvider] Room not found in API response');
+                return { teamName: '알 수 없음', roomName: '알 수 없음' };
+              }
+              
+              // 팀 채널인 경우
+              if (room.teamChannel) {
+                console.log('[NotificationProvider] Team channel detected, fetching team info');
+                // 팀 정보 가져오기
+                try {
+                  const teamResponse = await fetch(`/api/teams/${room.teamChannel.teamId}`);
+                  if (teamResponse.ok) {
+                    const teamData = await teamResponse.json();
+                    console.log('[NotificationProvider] Team info fetched:', teamData.team?.name);
+                    return {
+                      teamName: teamData.team?.name || '알 수 없음',
+                      roomName: room.teamChannel.name || room.name || '채널',
+                    };
+                  } else {
+                    console.error('[NotificationProvider] Failed to fetch team info, status:', teamResponse.status);
+                  }
+                } catch (error) {
+                  console.error('[NotificationProvider] Failed to fetch team info:', error);
+                }
+                return {
+                  teamName: '알 수 없음',
+                  roomName: room.teamChannel.name || room.name || '채널',
+                };
+              }
+              
+              // 개인 공간인 경우
               if (room.isPersonalSpace) {
-                return `${user?.name || user?.email || '사용자'}(나)`;
+                console.log('[NotificationProvider] Personal space detected');
+                return {
+                  teamName: '개인 공간',
+                  roomName: room.name || `${user?.name || user?.email || '사용자'}(나)`,
+                };
               }
               
+              // DM인 경우
               if (room.type === 'DM') {
-                const otherMember = room.members?.find((m: any) => m.id !== user?.id);
-                return otherMember?.name || otherMember?.email || '알 수 없음';
+                console.log('[NotificationProvider] DM detected, roomName:', room.name);
+                return {
+                  teamName: '다이렉트 메시지',
+                  roomName: room.name || '알 수 없음',
+                };
               }
               
-              return room.name || '채팅방';
+              // 그룹 채팅방인 경우
+              console.log('[NotificationProvider] Group chat detected, roomName:', room.name);
+              return {
+                teamName: '그룹 채팅',
+                roomName: room.name || '채팅방',
+              };
+            } else {
+              console.error('[NotificationProvider] Failed to fetch rooms, status:', response.status);
             }
           } catch (error) {
-            console.error('[NotificationProvider] Failed to fetch room name:', error);
+            console.error('[NotificationProvider] Failed to fetch room info:', error);
           }
-          return '알 수 없음';
+          return { teamName: '알 수 없음', roomName: '알 수 없음' };
         };
 
-        // 비동기로 채팅방 이름 가져와서 알림 생성
-        getRoomName(data.roomId).then((roomName) => {
+        // 비동기로 채팅방 정보 가져와서 알림 생성
+        getRoomInfo(data.roomId).then(async ({ teamName, roomName }) => {
           const senderName = data.lastMessage.user.name || data.lastMessage.user.email.split('@')[0];
+          
+          // 사용자 정보를 다시 조회해서 최신 프로필 이미지 URL 가져오기
+          let userProfileImageUrl = data.lastMessage.user.profileImageUrl;
+          try {
+            const userResponse = await fetch(`/api/users/search?userId=${data.lastMessage.user.id}`);
+            if (userResponse.ok) {
+              const userData = await userResponse.json();
+              if (userData.user?.profileImageUrl) {
+                userProfileImageUrl = userData.user.profileImageUrl;
+                console.log('[NotificationProvider] Fetched user profileImageUrl from API:', userProfileImageUrl);
+              }
+            }
+          } catch (error) {
+            console.error('[NotificationProvider] Failed to fetch user profileImageUrl:', error);
+          }
+          
+          console.log('[NotificationProvider] Creating notification with user data:', {
+            userId: data.lastMessage.user.id,
+            profileImageUrl: userProfileImageUrl,
+            originalProfileImageUrl: data.lastMessage.user.profileImageUrl,
+            profileImageUrlType: typeof userProfileImageUrl,
+            user: data.lastMessage.user,
+          });
           
           addNotification({
             id: `msg-${data.lastMessage.id}`,
             type: 'message',
-            title: roomName,
+            title: teamName,
+            roomName: roomName,
             message: `${senderName}: ${data.lastMessage.content}`,
             roomId: data.roomId,
             userId: data.lastMessage.user.id,
@@ -108,8 +197,13 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               id: data.lastMessage.user.id,
               email: data.lastMessage.user.email,
               name: data.lastMessage.user.name,
-              profileImageUrl: null,
+              profileImageUrl: userProfileImageUrl ?? null,
             },
+          });
+          
+          console.log('[NotificationProvider] Notification added with profileImageUrl:', {
+            notificationId: `msg-${data.lastMessage.id}`,
+            profileImageUrl: userProfileImageUrl ?? null,
           });
         });
       }

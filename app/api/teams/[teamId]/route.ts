@@ -2,6 +2,121 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTokenFromCookies, verifyToken } from '@/lib/auth';
 
+// Get team by ID
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ teamId: string }> | { teamId: string } }
+) {
+  try {
+    const token = getTokenFromCookies(request.cookies);
+
+    if (!token) {
+      return NextResponse.json(
+        { error: '인증되지 않았습니다.' },
+        { status: 401 }
+      );
+    }
+
+    const decoded = verifyToken(token);
+
+    if (!decoded) {
+      return NextResponse.json(
+        { error: '유효하지 않은 토큰입니다.' },
+        { status: 401 }
+      );
+    }
+
+    // Handle params as Promise or object
+    const resolvedParams = await Promise.resolve(params);
+    const { teamId } = resolvedParams;
+
+    // Check if user is a member of the team
+    const teamMember = await prisma.teamMember.findUnique({
+      where: {
+        userId_teamId: {
+          userId: decoded.userId,
+          teamId: teamId,
+        },
+      },
+    });
+
+    if (!teamMember) {
+      return NextResponse.json(
+        { error: '팀 멤버가 아닙니다.' },
+        { status: 403 }
+      );
+    }
+
+    // Get team with members
+    const team = await prisma.team.findUnique({
+      where: { id: teamId },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            profileImageUrl: true,
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                profileImageUrl: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            members: true,
+            chatRooms: true,
+          },
+        },
+      },
+    });
+
+    if (!team) {
+      return NextResponse.json(
+        { error: '팀을 찾을 수 없습니다.' },
+        { status: 404 }
+      );
+    }
+
+    const teamResponse = {
+      id: team.id,
+      name: team.name,
+      description: team.description,
+      role: teamMember.role,
+      createdAt: team.createdAt.toISOString(),
+      updatedAt: team.updatedAt.toISOString(),
+      creator: team.creator,
+      members: team.members.map((m) => ({
+        id: m.user.id,
+        email: m.user.email,
+        name: m.user.name,
+        profileImageUrl: m.user.profileImageUrl,
+        role: m.role,
+        joinedAt: m.joinedAt.toISOString(),
+      })),
+      memberCount: team._count.members,
+      roomCount: team._count.chatRooms,
+    };
+
+    return NextResponse.json({ team: teamResponse }, { status: 200 });
+  } catch (error) {
+    console.error('[GET /api/teams/[teamId]] Error:', error);
+    return NextResponse.json(
+      { error: '팀 정보를 가져오는데 실패했습니다.' },
+      { status: 500 }
+    );
+  }
+}
+
 // Update team (name, description)
 export async function PATCH(
   request: NextRequest,

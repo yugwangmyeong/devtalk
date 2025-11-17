@@ -178,10 +178,27 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
         },
       });
 
+      // Re-fetch user to ensure we have the latest profileImageUrl
+      const user = await prisma.user.findUnique({
+        where: { id: socket.userId },
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          profileImageUrl: true,
+        },
+      });
+
+      // Use the re-fetched user data if available
+      const messageUser = user || message.user;
+
       console.log('[Socket] Message saved:', { 
         messageId: message.id, 
         roomId: message.chatRoomId,
-        userId: message.userId 
+        userId: message.userId,
+        userProfileImageUrl: messageUser.profileImageUrl,
+        originalUserProfileImageUrl: message.user.profileImageUrl,
+        user: messageUser,
       });
 
       // Check if this is a team channel and get the sender's team role
@@ -190,7 +207,7 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
         select: { teamId: true },
       });
 
-      let userWithRole = message.user;
+      let userWithRole = messageUser;
       if (teamChannel) {
         const teamMember = await prisma.teamMember.findUnique({
           where: {
@@ -204,7 +221,7 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
 
         if (teamMember) {
           userWithRole = {
-            ...message.user,
+            ...messageUser,
             teamRole: teamMember.role,
           };
         }
@@ -260,6 +277,12 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
 
       // Send roomMessageUpdate to all room members (for updating room list)
       // This ensures that even if a user is not currently in the room, they get notified
+      console.log('[Socket] Creating roomMessageUpdate with user profile:', {
+        userId: messageUser.id,
+        profileImageUrl: messageUser.profileImageUrl,
+        user: messageUser,
+      });
+      
       const roomMessageUpdate = {
         roomId: message.chatRoomId,
         lastMessage: {
@@ -267,13 +290,20 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
           content: message.content,
           createdAt: message.createdAt.toISOString(),
           user: {
-            id: message.user.id,
-            email: message.user.email,
-            name: message.user.name,
+            id: messageUser.id,
+            email: messageUser.email,
+            name: messageUser.name,
+            profileImageUrl: messageUser.profileImageUrl ?? null,
           },
         },
         updatedAt: new Date().toISOString(),
       };
+      
+      console.log('[Socket] roomMessageUpdate created with profileImageUrl:', {
+        userId: messageUser.id,
+        profileImageUrl: roomMessageUpdate.lastMessage.user.profileImageUrl,
+        originalProfileImageUrl: messageUser.profileImageUrl,
+      });
 
       // Send roomMessageUpdate to all room members (except sender)
       // This ensures all members get notified regardless of which room they're currently viewing
@@ -297,7 +327,7 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
         userId: message.userId,
         chatRoomId: message.chatRoomId,
         createdAt: message.createdAt,
-        user: message.user,
+        user: messageUser,
       });
     } catch (error) {
       console.error('Send message error:', error);

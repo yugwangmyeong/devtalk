@@ -40,6 +40,7 @@ export interface ServerToClientEvents {
         id: string;
         email: string;
         name: string | null;
+        profileImageUrl: string | null;
       };
     };
     updatedAt: string;

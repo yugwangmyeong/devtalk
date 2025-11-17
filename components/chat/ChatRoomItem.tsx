@@ -35,7 +35,7 @@ export function ChatRoomItem({ room, user, isSelected, onSelect }: ChatRoomItemP
     }
     if (room.type === 'DM') {
       const otherMember = getOtherMember(room);
-      return otherMember?.profileImageUrl;
+      return otherMember?.profileImageUrl || null;
     }
     return null;
   };
@@ -60,21 +60,24 @@ export function ChatRoomItem({ room, user, isSelected, onSelect }: ChatRoomItemP
     return `${year}.${month}.${day}`;
   };
 
+  const avatarUrl = getRoomAvatar(room);
+  const displayName = getRoomDisplayName(room);
+
   return (
     <div
       className={`chat-dm-item ${isSelected ? 'chat-dm-item-selected' : ''}`}
       onClick={() => onSelect(room)}
     >
       <div className="chat-avatar">
-        {getRoomAvatar(room) ? (
-          <img src={getRoomAvatar(room)!} alt={getRoomDisplayName(room)} />
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={displayName} />
         ) : (
           <div className="chat-avatar-placeholder"></div>
         )}
       </div>
       <div className="chat-dm-item-content">
         <div className="chat-dm-item-name">
-          {getRoomDisplayName(room)}
+          {displayName}
         </div>
         {room.lastMessage && (
           <>

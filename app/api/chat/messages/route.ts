@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTokenFromCookies, verifyToken } from '@/lib/auth';
+import { getIO } from '@/lib/socket';
 
 // Get messages for a chat room
 export async function GET(request: NextRequest) {
@@ -270,11 +271,27 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Re-fetch user to ensure we have the latest profileImageUrl
+    const user = await prisma.user.findUnique({
+      where: { id: decoded.userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        profileImageUrl: true,
+      },
+    });
+
+    // Use the re-fetched user data if available
+    const messageUser = user || message.user;
+
     console.log('[API] Message created successfully:', {
       messageId: message.id,
       roomId: message.chatRoomId,
       userId: message.userId,
       isPersonalSpace,
+      userProfileImageUrl: messageUser.profileImageUrl,
+      originalUserProfileImageUrl: message.user.profileImageUrl,
     });
 
     // Update chat room's updatedAt
@@ -282,6 +299,55 @@ export async function POST(request: NextRequest) {
       where: { id: roomId },
       data: { updatedAt: new Date() },
     });
+
+    // Get all members of the room (from DB) for socket notification
+    const roomMembers = await prisma.chatRoomMember.findMany({
+      where: { chatRoomId: roomId },
+      select: { userId: true },
+    });
+
+    const memberUserIds = roomMembers.map((m: { userId: string }) => m.userId);
+
+    // Send roomMessageUpdate via socket to all room members (except sender)
+    const io = getIO();
+    if (io) {
+      const roomMessageUpdate = {
+        roomId: message.chatRoomId,
+        lastMessage: {
+          id: message.id,
+          content: message.content,
+          createdAt: message.createdAt.toISOString(),
+          user: {
+            id: messageUser.id,
+            email: messageUser.email,
+            name: messageUser.name,
+            profileImageUrl: messageUser.profileImageUrl ?? null,
+          },
+        },
+        updatedAt: new Date().toISOString(),
+      };
+
+      console.log('[API] Sending roomMessageUpdate via socket:', {
+        roomId: message.chatRoomId,
+        userId: message.userId,
+        profileImageUrl: roomMessageUpdate.lastMessage.user.profileImageUrl,
+        originalProfileImageUrl: messageUser.profileImageUrl,
+        memberUserIds,
+      });
+
+      // Send roomMessageUpdate to all room members (except sender)
+      io.sockets.sockets.forEach((connectedSocket) => {
+        const socketUserId = (connectedSocket as any).userId;
+        if (socketUserId && memberUserIds.includes(socketUserId)) {
+          if (socketUserId !== decoded.userId) {
+            console.log(`[API] Sending roomMessageUpdate to user ${socketUserId} (socket ${connectedSocket.id})`);
+            connectedSocket.emit('roomMessageUpdate', roomMessageUpdate);
+          }
+        }
+      });
+    } else {
+      console.warn('[API] Socket.IO not available, skipping roomMessageUpdate');
+    }
 
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {

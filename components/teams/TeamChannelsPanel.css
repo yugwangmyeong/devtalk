@@ -327,10 +327,24 @@
   color: white;
 }
 
-.team-channels-dm-checkbox {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
+.team-channels-dm-avatar {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.team-channels-dm-avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.team-channels-dm-avatar-placeholder {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background-color: #4b5563;
 }
 
 .team-channels-dm-name {
