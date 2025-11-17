@@ -7,7 +7,7 @@ async function resetChatRooms() {
     console.log('🗑️  채팅방 초기화 시작...');
 
     // 1. 모든 메시지 삭제
-    console.log('📨 메시지 삭제ssss 중...');
+    console.log('📨 메시지 삭제ssss 중...코드확인2222');
     const deletedMessages = await prisma.message.deleteMany({});
     console.log(`✅ ${deletedMessages.count}개의 메시지 삭제 완료`);
 
