@@ -120,7 +120,7 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
     console.log('[Socket] Processing sendMessage:', { roomId, content, userId: socket.userId });
 
     try {
-      // Verify user is a member of the room
+      // Verify user is a member of the room and check if it's a personal space
       const member = await prisma.chatRoomMember.findUnique({
         where: {
           userId_chatRoomId: {
@@ -128,10 +128,26 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
             chatRoomId: roomId,
           },
         },
+        include: {
+          chatRoom: {
+            include: {
+              members: true,
+            },
+          },
+        },
       });
 
       if (!member) {
         socket.emit('error', { message: 'Not a member of this room' });
+        return;
+      }
+
+      // Check if this is a personal space (only one member - the user themselves)
+      const isPersonalSpace = member.chatRoom.type === 'DM' && member.chatRoom.members.length === 1;
+      
+      if (isPersonalSpace) {
+        console.log('[Socket] Personal space detected, rejecting socket message (should use HTTP API)');
+        socket.emit('error', { message: 'Personal space messages should be sent via HTTP API' });
         return;
       }
 
@@ -168,6 +184,32 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
         userId: message.userId 
       });
 
+      // Check if this is a team channel and get the sender's team role
+      const teamChannel = await prisma.teamChannel.findUnique({
+        where: { chatRoomId: roomId },
+        select: { teamId: true },
+      });
+
+      let userWithRole = message.user;
+      if (teamChannel) {
+        const teamMember = await prisma.teamMember.findUnique({
+          where: {
+            userId_teamId: {
+              userId: socket.userId,
+              teamId: teamChannel.teamId,
+            },
+          },
+          select: { role: true },
+        });
+
+        if (teamMember) {
+          userWithRole = {
+            ...message.user,
+            teamRole: teamMember.role,
+          };
+        }
+      }
+
       // Update chat room's updatedAt
       await prisma.chatRoom.update({
         where: { id: roomId },
@@ -196,7 +238,7 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
           userId: message.userId,
           chatRoomId: message.chatRoomId,
           createdAt: message.createdAt,
-          user: message.user,
+          user: userWithRole,
         });
         
         console.log('[Socket] newMessage event emitted to room');
@@ -205,6 +247,16 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
         console.log('[Socket] Only one user in room, skipping real-time broadcast');
         console.log('[Socket] Room size:', usersInRoom, 'Room exists:', !!room);
       }
+
+      // Also send messageSent event to sender with role info
+      socket.emit('messageSent', {
+        id: message.id,
+        content: message.content,
+        userId: message.userId,
+        chatRoomId: message.chatRoomId,
+        createdAt: message.createdAt,
+        user: userWithRole,
+      });
 
       // Send roomMessageUpdate to all room members (for updating room list)
       // This ensures that even if a user is not currently in the room, they get notified

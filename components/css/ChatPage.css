@@ -846,3 +846,18 @@
 .chat-input-send-button:disabled:hover {
   opacity: 0.3;
 }
+
+/* Role Badge */
+.chat-message-role-badge {
+  display: inline-block;
+  margin-left: 0.375rem;
+  font-size: 0.875rem;
+  line-height: 1;
+  vertical-align: middle;
+  cursor: help;
+}
+
+.chat-message-sender {
+  display: inline-flex;
+  align-items: center;
+}

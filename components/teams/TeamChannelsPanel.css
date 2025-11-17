@@ -304,6 +304,13 @@
   flex-direction: column;
 }
 
+.team-channels-loading {
+  padding: 0.5rem 1rem;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
 .team-channels-dm-item {
   display: flex;
   align-items: center;

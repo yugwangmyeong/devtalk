@@ -82,10 +82,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get all teams where user is a member
+    // Get all teams where user is a member (only ACCEPTED members)
     let teamMembers = await prisma.teamMember.findMany({
       where: {
         userId: decoded.userId,
+        status: 'ACCEPTED', // 수락된 멤버만 조회
       },
       include: {
         team: {
@@ -141,6 +142,7 @@ export async function GET(request: NextRequest) {
             create: {
               userId: user.id,
               role: 'OWNER',
+              status: 'ACCEPTED', // OWNER는 자동으로 수락됨
             },
           },
         },
@@ -267,6 +269,7 @@ export async function POST(request: NextRequest) {
           create: {
             userId: decoded.userId,
             role: 'OWNER',
+            status: 'ACCEPTED', // OWNER는 자동으로 수락됨
           },
         },
       },

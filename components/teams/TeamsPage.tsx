@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useSocketStore } from '@/stores/useSocketStore';
 import { useTeamViewStore } from '@/stores/useTeamViewStore';
+import { usePersonalSpaceStore } from '@/stores/usePersonalSpaceStore';
 import { Sidebar } from '@/components/layouts/Sidebar';
 import { TeamPanel } from './TeamPanel';
 import { TeamChannelsPanel } from './TeamChannelsPanel';
@@ -28,6 +29,8 @@ export function TeamsPage() {
   const [messageInput, setMessageInput] = useState('');
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const loadedDMUserIdRef = useRef<string | null>(null);
+  const isLoadingDMRef = useRef(false);
 
   // TeamsPage에 진입할 때 항상 Sidebar의 채널 패널 닫기
   useEffect(() => {
@@ -116,12 +119,13 @@ export function TeamsPage() {
             const room: ChatRoom = {
               id: channelToSelect.chatRoomId, // Use chatRoomId for messages
               name: channelToSelect.name,
-              type: 'TEAM_CHANNEL',
+              type: 'GROUP', // Use 'GROUP' type for team channels (not 'TEAM_CHANNEL')
               isPersonalSpace: false,
               members: channelToSelect.members || [],
               lastMessage: channelToSelect.lastMessage,
               updatedAt: channelToSelect.updatedAt,
             };
+            console.log('[TeamsPage] Channel loaded from URL, room type:', room.type, 'channel:', channelToSelect.name);
             setSelectedRoom(room);
           }
         }
@@ -141,6 +145,128 @@ export function TeamsPage() {
   useEffect(() => {
     fetchChannels();
   }, [fetchChannels]);
+
+  const { personalSpaceRoom: storePersonalSpaceRoom, fetchPersonalSpace } = usePersonalSpaceStore();
+
+  // Handle personal space click - use personal space room from store (same as ChatPage)
+  const handlePersonalSpaceClick = useCallback(async () => {
+    if (!user) {
+      return;
+    }
+
+    setIsLoadingMessages(true);
+    try {
+      // ChatPage에서 사용하는 것과 동일한 personal space room 사용
+      const personalSpaceRoom = storePersonalSpaceRoom || await fetchPersonalSpace();
+      
+      if (personalSpaceRoom) {
+        console.log('[TeamsPage] Personal space selected (from store):', personalSpaceRoom.id);
+        
+        // Clear selected channel when personal space is selected
+        setSelectedChannel(null);
+        setSelectedRoom(personalSpaceRoom);
+        loadedDMUserIdRef.current = null; // Personal space는 DM이 아니므로 ref 초기화
+        
+        // URL 업데이트하지 않음 (요구사항)
+      } else {
+        alert('나만의 공간을 불러오는데 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[TeamsPage] Failed to get personal space:', error);
+      alert('나만의 공간을 불러오는데 실패했습니다.');
+    } finally {
+      setIsLoadingMessages(false);
+    }
+  }, [user, storePersonalSpaceRoom, fetchPersonalSpace]);
+
+  // Handle DM click - create or get existing DM room
+  const handleDMClick = useCallback(async (userId: string) => {
+    if (!selectedTeam || !user) {
+      return;
+    }
+
+    // 이미 같은 DM을 로드 중이거나 로드된 경우 중복 호출 방지
+    if (isLoadingDMRef.current || loadedDMUserIdRef.current === userId) {
+      return;
+    }
+
+    isLoadingDMRef.current = true;
+    setIsLoadingMessages(true);
+    try {
+      // Create or get existing DM room
+      const response = await fetch('/api/chat/rooms', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ userId }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const dmRoom: ChatRoom = {
+          id: data.room.id,
+          name: data.room.name,
+          type: 'DM',
+          isPersonalSpace: data.room.isPersonalSpace || false,
+          members: data.room.members || [],
+          lastMessage: data.room.lastMessage,
+          updatedAt: data.room.updatedAt,
+        };
+        
+        console.log('[TeamsPage] DM room selected:', dmRoom.id, 'with user:', userId);
+        
+        // Clear selected channel when DM is selected
+        setSelectedChannel(null);
+        setSelectedRoom(dmRoom);
+        loadedDMUserIdRef.current = userId;
+        
+        // Update URL to reflect DM selection
+        router.replace(`/teams?teamId=${selectedTeam.id}&dmUserId=${userId}`);
+      } else {
+        const errorData = await response.json();
+        console.error('[TeamsPage] Failed to create/get DM room:', errorData);
+        alert(errorData.error || 'DM을 시작하는데 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('[TeamsPage] Failed to create/get DM room:', error);
+      alert('DM을 시작하는데 실패했습니다.');
+    } finally {
+      setIsLoadingMessages(false);
+      isLoadingDMRef.current = false;
+    }
+  }, [selectedTeam, user, router]);
+
+  // Handle DM from URL
+  useEffect(() => {
+    const dmUserIdFromUrl = searchParams.get('dmUserId');
+    const channelIdFromUrl = searchParams.get('channelId');
+    
+    // Only load DM if URL has dmUserId and no channel is selected
+    if (dmUserIdFromUrl && selectedTeam && user && !channelIdFromUrl) {
+      // 이미 같은 DM이 로드되었거나 로드 중이면 스킵
+      if (loadedDMUserIdRef.current === dmUserIdFromUrl || isLoadingDMRef.current) {
+        return;
+      }
+      
+      // Check if we already have this DM room loaded in selectedRoom
+      const currentDMUserId = selectedRoom?.type === 'DM' 
+        ? selectedRoom.members.find(m => m.id !== user.id)?.id 
+        : null;
+      
+      // URL의 dmUserId와 현재 로드된 DM이 다르면 로드
+      if (currentDMUserId !== dmUserIdFromUrl) {
+        handleDMClick(dmUserIdFromUrl);
+      } else {
+        // 이미 로드된 경우 ref 업데이트
+        loadedDMUserIdRef.current = dmUserIdFromUrl;
+      }
+    } else if (!dmUserIdFromUrl) {
+      // URL에 dmUserId가 없으면 ref 초기화
+      loadedDMUserIdRef.current = null;
+    }
+  }, [searchParams, selectedTeam, user, handleDMClick]);
 
   // Fetch messages when channel is selected
   useEffect(() => {
@@ -169,54 +295,74 @@ export function TeamsPage() {
 
   // Join room when selected and socket is connected
   useEffect(() => {
-    if (selectedRoom && socket && isConnected && isAuthenticated) {
-      socket.emit('joinRoom', { roomId: selectedRoom.id });
-
-      const handleNewMessage = (data: {
-        id: string;
-        content: string;
-        userId: string;
-        chatRoomId: string;
-        createdAt: Date | string;
-        user: {
-          id: string;
-          email: string;
-          name: string | null;
-          profileImageUrl: string | null;
-        };
-      }) => {
-        if (data.chatRoomId === selectedRoom.id) {
-          const message: Message = {
-            ...data,
-            createdAt: typeof data.createdAt === 'string' ? data.createdAt : data.createdAt.toISOString(),
-          };
-          setMessages((prev) => [...prev, message]);
-        }
-      };
-
-      socket.on('newMessage', handleNewMessage);
-      socket.on('messageSent', handleNewMessage);
-
-      return () => {
-        socket.off('newMessage', handleNewMessage);
-        socket.off('messageSent', handleNewMessage);
-        socket.emit('leaveRoom', { roomId: selectedRoom.id });
-      };
+    if (!selectedRoom || !socket || !isConnected || !isAuthenticated) {
+      return;
     }
-  }, [selectedRoom?.id, socket, isConnected, isAuthenticated]);
+
+    // Personal space는 소켓 룸에 조인하지 않지만, messageSent 이벤트는 받아야 함
+    if (!selectedRoom.isPersonalSpace) {
+      socket.emit('joinRoom', { roomId: selectedRoom.id });
+    } else {
+      console.log('[TeamsPage] Personal space, skipping room join but listening to messageSent');
+    }
+
+    const handleNewMessage = (data: {
+      id: string;
+      content: string;
+      userId: string;
+      chatRoomId: string;
+      createdAt: Date | string;
+      user: {
+        id: string;
+        email: string;
+        name: string | null;
+        profileImageUrl: string | null;
+      };
+    }) => {
+      if (data.chatRoomId === selectedRoom.id) {
+        const message: Message = {
+          ...data,
+          createdAt: typeof data.createdAt === 'string' ? data.createdAt : data.createdAt.toISOString(),
+        };
+        setMessages((prev) => {
+          // 중복 체크
+          const exists = prev.some(m => m.id === message.id);
+          if (exists) {
+            return prev;
+          }
+          return [...prev, message];
+        });
+      }
+    };
+
+    socket.on('newMessage', handleNewMessage);
+    socket.on('messageSent', handleNewMessage);
+
+    return () => {
+      socket.off('newMessage', handleNewMessage);
+      socket.off('messageSent', handleNewMessage);
+      // Personal space가 아닐 때만 leaveRoom
+      if (!selectedRoom.isPersonalSpace) {
+        socket.emit('leaveRoom', { roomId: selectedRoom.id });
+      }
+    };
+  }, [selectedRoom?.id, selectedRoom?.isPersonalSpace, socket, isConnected, isAuthenticated]);
 
   // Handle channel click
   const handleChannelClick = (channel: Channel) => {
     setSelectedChannel(channel);
+    // Channel 선택 시 DM ref 초기화
+    loadedDMUserIdRef.current = null;
     const room: ChatRoom = {
       id: channel.chatRoomId, // Use chatRoomId for messages
       name: channel.name,
-      type: 'TEAM_CHANNEL',
+      type: 'GROUP', // Use 'GROUP' type for team channels (not 'TEAM_CHANNEL')
       isPersonalSpace: false,
       members: channel.members || [],
       lastMessage: channel.lastMessage,
       updatedAt: channel.updatedAt,
     };
+    console.log('[TeamsPage] Channel selected, room type:', room.type, 'channel:', channel.name);
     setSelectedRoom(room);
     router.replace(`/teams?teamId=${selectedTeam?.id}&channelId=${channel.id}`);
   };
@@ -294,6 +440,8 @@ export function TeamsPage() {
                   isLoadingChannels={isLoadingChannels}
                   onChannelClick={handleChannelClick}
                   onChannelCreated={handleChannelCreated}
+                  onDMClick={handleDMClick}
+                  onPersonalSpaceClick={handlePersonalSpaceClick}
                 />
               </div>
 
@@ -311,7 +459,7 @@ export function TeamsPage() {
                   />
                 ) : (
                   <div className="chat-empty-state">
-                    <p>채널을 선택해주세요</p>
+                    <p>채널 또는 DM을 선택해주세요</p>
                   </div>
                 )}
               </div>

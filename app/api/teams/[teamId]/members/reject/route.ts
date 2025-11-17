@@ -29,7 +29,7 @@ export async function POST(
     const resolvedParams = await Promise.resolve(params);
     const { teamId } = resolvedParams;
 
-    // Check if user is a member of the team
+    // Check if user has a pending invitation
     const teamMember = await prisma.teamMember.findUnique({
       where: {
         userId_teamId: {
@@ -41,8 +41,16 @@ export async function POST(
 
     if (!teamMember) {
       return NextResponse.json(
-        { error: '팀 멤버가 아닙니다.' },
+        { error: '초대를 찾을 수 없습니다.' },
         { status: 404 }
+      );
+    }
+
+    // Only PENDING invitations can be rejected
+    if (teamMember.status !== 'PENDING') {
+      return NextResponse.json(
+        { error: teamMember.status === 'ACCEPTED' ? '이미 수락된 초대는 거절할 수 없습니다. 팀에서 나가려면 멤버 제거 기능을 사용하세요.' : '유효하지 않은 초대 상태입니다.' },
+        { status: 400 }
       );
     }
 

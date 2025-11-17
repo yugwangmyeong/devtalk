@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useSocketStore } from '@/stores/useSocketStore';
 import { useTeamViewStore } from '@/stores/useTeamViewStore';
+import { usePersonalSpaceStore } from '@/stores/usePersonalSpaceStore';
 import { Sidebar } from '@/components/layouts/Sidebar';
 import { DMPanel } from './chat/DMPanel';
 import { ChatArea } from './chat/ChatArea';
@@ -15,6 +16,7 @@ export function ChatPage() {
   const { user, isLoading: isAuthLoading } = useAuthStore();
   const { socket, isConnected, isAuthenticated } = useSocketStore();
   const { selectTeam, closeChannelsPanel } = useTeamViewStore();
+  const { setPersonalSpaceRoom } = usePersonalSpaceStore();
   const searchParams = useSearchParams();
   const router = useRouter();
 
@@ -87,17 +89,40 @@ export function ChatPage() {
             personalSpaceRoom = personalSpaceData.room;
             console.log('[ChatPage] Personal space room from API:', personalSpaceRoom?.id, personalSpaceRoom?.name);
 
+            // 개인 공간을 store에 저장 (TeamsPage에서도 사용)
+            if (personalSpaceRoom) {
+              const roomForStore: ChatRoom = {
+                id: personalSpaceRoom.id,
+                name: personalSpaceRoom.name || '나만의 공간',
+                type: 'DM',
+                isPersonalSpace: true,
+                members: personalSpaceRoom.members || [],
+                lastMessage: personalSpaceRoom.lastMessage,
+                updatedAt: personalSpaceRoom.updatedAt,
+              };
+              setPersonalSpaceRoom(roomForStore);
+            }
+
             // 개인 공간을 즉시 rooms 배열에 추가하고 선택
             if (personalSpaceRoom) {
               // 개인 공간을 즉시 추가 (초기 로딩 시 빠른 표시를 위해)
               setRooms((prevRooms) => {
+                // 중복 제거: 같은 ID를 가진 방이 여러 개 있으면 하나만 유지
+                const uniquePrevRooms = prevRooms.reduce((acc: ChatRoom[], room: ChatRoom) => {
+                  const existingRoom = acc.find(r => r.id === room.id);
+                  if (!existingRoom) {
+                    acc.push(room);
+                  }
+                  return acc;
+                }, []);
+
                 // 이미 개인 공간이 있으면 업데이트, 없으면 추가
-                const hasPersonalSpace = prevRooms.some(r => r.isPersonalSpace);
+                const hasPersonalSpace = uniquePrevRooms.some(r => r.isPersonalSpace);
                 if (hasPersonalSpace) {
-                  return prevRooms.map(r => r.isPersonalSpace ? personalSpaceRoom! : r);
+                  return uniquePrevRooms.map(r => r.isPersonalSpace ? personalSpaceRoom! : r);
                 } else {
                   // 개인 공간을 맨 앞에 추가
-                  return [personalSpaceRoom!, ...prevRooms];
+                  return [personalSpaceRoom!, ...uniquePrevRooms];
                 }
               });
 
@@ -159,17 +184,26 @@ export function ChatPage() {
           }
         }
 
-        setRooms(allRooms);
-        console.log('[ChatPage] Set rooms state:', allRooms.length, 'rooms');
+        // 중복 제거: 같은 ID를 가진 방이 여러 개 있으면 하나만 유지
+        const uniqueRooms = allRooms.reduce((acc: ChatRoom[], room: ChatRoom) => {
+          const existingRoom = acc.find(r => r.id === room.id);
+          if (!existingRoom) {
+            acc.push(room);
+          }
+          return acc;
+        }, []);
+
+        setRooms(uniqueRooms);
+        console.log('[ChatPage] Set rooms state:', uniqueRooms.length, 'rooms');
 
         // 개인 공간 찾기 (rooms 배열에서)
-        const finalPersonalSpaceRoom = allRooms.find((r: ChatRoom) => r.isPersonalSpace) || personalSpaceRoom;
+        const finalPersonalSpaceRoom = uniqueRooms.find((r: ChatRoom) => r.isPersonalSpace) || personalSpaceRoom;
         console.log('[ChatPage] Final personal space room:', finalPersonalSpaceRoom?.id, finalPersonalSpaceRoom?.name);
 
         // URL에서 roomId 읽어서 채팅방 선택 (없으면 개인 공간)
         const roomIdFromUrl = new URL(window.location.href).searchParams.get('roomId');
         if (roomIdFromUrl) {
-          const roomToSelect = allRooms.find((r: ChatRoom) => r.id === roomIdFromUrl && (r.isPersonalSpace || r.type === 'DM'));
+          const roomToSelect = uniqueRooms.find((r: ChatRoom) => r.id === roomIdFromUrl && (r.isPersonalSpace || r.type === 'DM'));
           if (roomToSelect) {
             setSelectedRoom(roomToSelect);
             console.log('[ChatPage] Selected room from URL:', roomToSelect.id);
@@ -222,13 +256,29 @@ export function ChatPage() {
     
     const fetchMessages = async () => {
       try {
+        console.log('[ChatPage] Fetching messages for room:', {
+          roomId: selectedRoom.id,
+          isPersonalSpace: selectedRoom.isPersonalSpace,
+        });
+        
         const response = await fetch(`/api/chat/messages?roomId=${selectedRoom.id}`);
         if (response.ok) {
           const data = await response.json();
+          console.log('[ChatPage] Messages fetched:', {
+            count: data.messages?.length || 0,
+            messageIds: data.messages?.map((m: Message) => m.id) || [],
+            userIds: data.messages?.map((m: Message) => m.userId) || [],
+          });
           setMessages(data.messages || []);
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          console.error('[ChatPage] Failed to fetch messages:', {
+            status: response.status,
+            error: errorData,
+          });
         }
       } catch (error) {
-        console.error('Failed to fetch messages:', error);
+        console.error('[ChatPage] Error fetching messages:', error);
       } finally {
         setIsLoadingMessages(false);
       }
@@ -317,7 +367,14 @@ export function ChatPage() {
         roomId: data.chatRoomId,
         selectedRoomId: selectedRoom?.id,
         content: data.content,
+        isPersonalSpace: selectedRoom?.isPersonalSpace,
       });
+
+      // Personal Space의 경우 소켓 이벤트를 무시 (HTTP API로만 처리)
+      if (selectedRoom?.isPersonalSpace && data.chatRoomId === selectedRoom?.id) {
+        console.log('[ChatPage] Ignoring socket event for personal space (handled via HTTP API)');
+        return;
+      }
 
       const message: Message = {
         ...data,
@@ -326,19 +383,27 @@ export function ChatPage() {
 
       // 현재 선택된 방의 메시지만 추가 (알림은 NotificationProvider에서 처리)
       if (message.chatRoomId === selectedRoom?.id) {
-        console.log('[ChatPage] Adding message to current room');
+        console.log('[ChatPage] Adding message to current room:', message.id);
         setMessages((prev) => {
-          // 중복 체크
+          // 중복 체크 (더 엄격하게)
           const exists = prev.some(m => m.id === message.id);
           if (exists) {
+            console.log('[ChatPage] Message already exists, skipping:', message.id);
             return prev;
           }
+          console.log('[ChatPage] Adding new message:', message.id);
           return [...prev, message];
         });
       }
-      // Update room list with new last message
-      setRooms((prev) =>
-        prev.map((room) =>
+      // Update room list with new last message (Personal Space 제외)
+      setRooms((prev) => {
+        const targetRoom = prev.find(r => r.id === message.chatRoomId);
+        if (targetRoom?.isPersonalSpace) {
+          // Personal Space는 HTTP API로만 업데이트되므로 소켓 이벤트 무시
+          return prev;
+        }
+        
+        const updatedRooms = prev.map((room) =>
           room.id === message.chatRoomId
             ? {
                 ...room,
@@ -355,8 +420,10 @@ export function ChatPage() {
                 updatedAt: new Date().toISOString(),
               }
             : room
-        )
-      );
+        );
+        
+        return updatedRooms;
+      });
     };
 
     const handleRoomMessageUpdate = (data: {
@@ -373,9 +440,16 @@ export function ChatPage() {
       };
       updatedAt: string;
     }) => {
-      // 채팅방 목록 업데이트 (알림은 NotificationProvider에서 처리)
-      setRooms((prev) =>
-        prev.map((room) =>
+      // Personal Space의 경우 소켓 이벤트를 무시 (HTTP API로만 처리)
+      setRooms((prev) => {
+        const targetRoom = prev.find(r => r.id === data.roomId);
+        if (targetRoom?.isPersonalSpace) {
+          console.log('[ChatPage] Ignoring roomMessageUpdate for personal space (handled via HTTP API)');
+          return prev;
+        }
+
+        // 채팅방 목록 업데이트 (알림은 NotificationProvider에서 처리)
+        const updatedRooms = prev.map((room) =>
           room.id === data.roomId
             ? {
                 ...room,
@@ -383,8 +457,10 @@ export function ChatPage() {
                 updatedAt: data.updatedAt,
               }
             : room
-        )
-      );
+        );
+        
+        return updatedRooms;
+      });
     };
 
     const handleError = (data: { message: string }) => {
@@ -423,7 +499,19 @@ export function ChatPage() {
     const roomId = selectedRoom.id;
 
     // 개인 공간의 경우 HTTP API 사용
+    console.log('[ChatPage] Checking if personal space:', {
+      isPersonalSpace: selectedRoom.isPersonalSpace,
+      roomId,
+      roomType: selectedRoom.type,
+      memberCount: selectedRoom.members?.length,
+    });
+    
     if (selectedRoom.isPersonalSpace) {
+      console.log('[ChatPage] Sending message to personal space via HTTP API:', {
+        roomId,
+        content: content.substring(0, 50),
+      });
+      
       try {
         const response = await fetch('/api/chat/messages', {
           method: 'POST',
@@ -433,8 +521,18 @@ export function ChatPage() {
           body: JSON.stringify({ roomId, content }),
         });
 
+        console.log('[ChatPage] Personal space message response:', {
+          status: response.status,
+          ok: response.ok,
+        });
+
         if (response.ok) {
           const data = await response.json();
+          console.log('[ChatPage] Personal space message saved:', {
+            messageId: data.message?.id,
+            roomId: data.message?.chatRoomId,
+          });
+          
           const message: Message = {
             ...data.message,
             createdAt: typeof data.message.createdAt === 'string'
@@ -442,38 +540,68 @@ export function ChatPage() {
               : new Date(data.message.createdAt).toISOString(),
           };
 
-          // 메시지 목록에 추가
-          setMessages((prev) => [...prev, message]);
+          // 메시지 목록에 추가 (중복 체크)
+          setMessages((prev) => {
+            const exists = prev.some(m => m.id === message.id);
+            if (exists) {
+              console.log('[ChatPage] Message already in list, skipping:', message.id);
+              return prev;
+            }
+            console.log('[ChatPage] Adding message to list:', message.id);
+            return [...prev, message];
+          });
 
           // 채팅방 목록 업데이트
           setRooms((prev) =>
             prev.map((room) =>
               room.id === roomId
                 ? {
-                  ...room,
-                  lastMessage: {
-                    id: message.id,
-                    content: message.content,
-                    createdAt: message.createdAt,
-                    user: {
-                      id: message.user.id,
-                      email: message.user.email,
-                      name: message.user.name,
+                    ...room,
+                    lastMessage: {
+                      id: message.id,
+                      content: message.content,
+                      createdAt: message.createdAt,
+                      user: {
+                        id: message.user.id,
+                        email: message.user.email,
+                        name: message.user.name,
+                      },
                     },
-                  },
-                  updatedAt: new Date().toISOString(),
-                }
+                    updatedAt: new Date().toISOString(),
+                  }
                 : room
             )
           );
 
+          // Personal Space store도 업데이트
+          if (selectedRoom.isPersonalSpace) {
+            setPersonalSpaceRoom({
+              ...selectedRoom,
+              lastMessage: {
+                id: message.id,
+                content: message.content,
+                createdAt: message.createdAt,
+                user: {
+                  id: message.user.id,
+                  email: message.user.email,
+                  name: message.user.name,
+                },
+              },
+              updatedAt: new Date().toISOString(),
+            });
+          }
+
           setMessageInput('');
         } else {
-          const error = await response.json();
-          alert(error.error || '메시지 전송에 실패했습니다.');
+          const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+          console.error('[ChatPage] Failed to send personal space message:', {
+            status: response.status,
+            error: errorData,
+          });
+          alert(errorData.error || '메시지 전송에 실패했습니다.');
         }
       } catch (error) {
-        console.error('Failed to send message:', error);
+        console.error('[ChatPage] Error sending personal space message:', error);
         alert('메시지 전송에 실패했습니다.');
       }
       return;

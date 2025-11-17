@@ -48,12 +48,44 @@ export async function GET(request: NextRequest) {
       id: {
         in: roomIds,
       },
+      // Exclude team channels (GROUP rooms that are linked to TeamChannel)
+      // Team channels should be accessed via /api/teams/[teamId]/channels
+      teamChannel: null, // Only include rooms that are NOT team channels
     };
     
     // Add type filter if provided
     if (typeFilter) {
       whereClause.type = typeFilter;
     }
+
+    // Debug: Check all rooms before filtering
+    const allRoomsBeforeFilter = await prisma.chatRoom.findMany({
+      where: {
+        id: {
+          in: roomIds,
+        },
+      },
+      include: {
+        teamChannel: {
+          select: {
+            id: true,
+            name: true,
+            teamId: true,
+          },
+        },
+      },
+    });
+
+    console.log('[GET /api/chat/rooms] All rooms before teamChannel filter:', {
+      count: allRoomsBeforeFilter.length,
+      rooms: allRoomsBeforeFilter.map(r => ({
+        id: r.id,
+        type: r.type,
+        name: r.name,
+        hasTeamChannel: !!r.teamChannel,
+        teamChannelId: r.teamChannel?.id,
+      })),
+    });
 
     // Then, fetch all rooms with their members and messages
     const rooms = await prisma.chatRoom.findMany({
@@ -87,18 +119,26 @@ export async function GET(request: NextRequest) {
             },
           },
         },
+        teamChannel: {
+          select: {
+            id: true,
+            name: true,
+            teamId: true,
+          },
+        },
       },
       orderBy: {
         updatedAt: 'desc',
       },
     });
 
-    console.log('[GET /api/chat/rooms] Found rooms:', {
+    console.log('[GET /api/chat/rooms] Found rooms after filter:', {
       count: rooms.length,
       roomIds: rooms.map(r => r.id),
       roomTypes: rooms.map(r => r.type),
       memberCounts: rooms.map(r => r.members.length),
       typeFilter: typeFilter || 'none',
+      roomsWithTeamChannel: rooms.filter(r => r.teamChannel).length,
     });
 
     // Format the response

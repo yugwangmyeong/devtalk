@@ -15,6 +15,8 @@ interface TeamChannelsPanelProps {
   isLoadingChannels?: boolean;
   onChannelClick?: (channel: Channel) => void;
   onChannelCreated?: () => void;
+  onDMClick?: (userId: string) => void;
+  onPersonalSpaceClick?: () => void; // 나만의 공간 클릭 핸들러
 }
 
 export function TeamChannelsPanel({ 
@@ -25,6 +27,8 @@ export function TeamChannelsPanel({
   isLoadingChannels: externalIsLoadingChannels,
   onChannelClick: externalOnChannelClick,
   onChannelCreated,
+  onDMClick,
+  onPersonalSpaceClick,
 }: TeamChannelsPanelProps) {
   const { selectedTeam } = useTeamViewStore();
   const { user } = useAuthStore();
@@ -43,6 +47,8 @@ export function TeamChannelsPanel({
   const [isSearching, setIsSearching] = useState(false);
   const [isInviting, setIsInviting] = useState(false);
   const [invitingUserId, setInvitingUserId] = useState<string | null>(null);
+  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; email: string; name: string | null; profileImageUrl: string | null; role: string }>>([]);
+  const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Use external props if provided, otherwise use internal state
@@ -80,6 +86,33 @@ export function TeamChannelsPanel({
       fetchChannels();
     }
   }, [fetchChannels, externalChannels]);
+
+  // Fetch team members
+  const fetchTeamMembers = useCallback(async () => {
+    if (!selectedTeam) {
+      setTeamMembers([]);
+      return;
+    }
+
+    setIsLoadingMembers(true);
+    try {
+      const response = await fetch(`/api/teams/${selectedTeam.id}/members`);
+      if (response.ok) {
+        const data = await response.json();
+        setTeamMembers(data.members || []);
+      } else {
+        console.error('Failed to fetch team members');
+      }
+    } catch (error) {
+      console.error('Failed to fetch team members:', error);
+    } finally {
+      setIsLoadingMembers(false);
+    }
+  }, [selectedTeam]);
+
+  useEffect(() => {
+    fetchTeamMembers();
+  }, [fetchTeamMembers]);
 
   // Create channel
   const handleCreateChannel = async (e: React.FormEvent) => {
@@ -190,8 +223,8 @@ export function TeamChannelsPanel({
       if (response.ok) {
         const data = await response.json();
         // Filter out users who are already team members
-        const existingMemberIds = new Set(selectedTeam?.members.map(m => m.id) || []);
-        const filteredUsers = (data.users || []).filter((u: any) => !existingMemberIds.has(u.id));
+        const existingMemberIds = new Set(teamMembers.map(m => m.id));
+        const filteredUsers = (data.users || []).filter((u: { id: string }) => !existingMemberIds.has(u.id));
         setSearchResults(filteredUsers);
       } else {
         setSearchResults([]);
@@ -248,6 +281,9 @@ export function TeamChannelsPanel({
         setSearchResults([]);
         setShowInviteModal(false);
         setError(null);
+        
+        // Refresh team members list
+        fetchTeamMembers();
         
         // Refresh channels if needed
         if (externalChannels === undefined) {
@@ -437,12 +473,56 @@ export function TeamChannelsPanel({
 
         {isDMExpanded && (
           <div className="team-channels-dm-list" onClick={handleSectionClick}>
-            <div className="team-channels-dm-item">
-              <input type="checkbox" className="team-channels-dm-checkbox" />
-              <span className="team-channels-dm-name">
-                {user?.name || user?.email || '나'}
-              </span>
-            </div>
+            {isLoadingMembers ? (
+              <div className="team-channels-loading">로딩 중...</div>
+            ) : (
+              <>
+                {/* 본인 항목 - 나만의 공간으로 이동 */}
+                {user && (
+                  <div 
+                    key={`self-${user.id}`}
+                    className="team-channels-dm-item"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // 나만의 공간 클릭 핸들러 호출 (URL 이동 없이)
+                      if (onPersonalSpaceClick) {
+                        onPersonalSpaceClick();
+                      }
+                    }}
+                    style={{ cursor: onPersonalSpaceClick ? 'pointer' : 'default' }}
+                  >
+                    <input type="checkbox" className="team-channels-dm-checkbox" />
+                    <span className="team-channels-dm-name">
+                      {user.name || user.email}(나)
+                    </span>
+                  </div>
+                )}
+                {/* 다른 멤버들 */}
+                {teamMembers
+                  .filter((member) => member.id !== user?.id) // 현재 사용자 제외
+                  .map((member) => (
+                    <div 
+                      key={member.id} 
+                      className="team-channels-dm-item"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (onDMClick) {
+                          onDMClick(member.id);
+                        }
+                      }}
+                      style={{ cursor: onDMClick ? 'pointer' : 'default' }}
+                    >
+                      <input type="checkbox" className="team-channels-dm-checkbox" />
+                      <span className="team-channels-dm-name">
+                        {member.name || member.email}
+                        {member.role === 'OWNER' && ' 👑'}
+                        {member.role === 'ADMIN' && ' ⭐'}
+                      </span>
+                    </div>
+                  ))
+                }
+              </>
+            )}
           </div>
         )}
       </div>

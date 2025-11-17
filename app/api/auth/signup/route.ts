@@ -67,6 +67,7 @@ export async function POST(request: NextRequest) {
           create: {
             userId: user.id,
             role: 'OWNER',
+            status: 'ACCEPTED', // OWNER는 자동으로 수락됨
           },
         },
       },

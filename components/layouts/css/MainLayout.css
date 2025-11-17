@@ -29,8 +29,18 @@
   transition: background-color 0.2s;
 }
 
-.main-team-button:hover {
+.main-team-button:hover:not(:disabled) {
   background-color: #4b5563; /* gray-600 */
+}
+
+.main-team-button:disabled {
+  pointer-events: none;
+  opacity: 0.7;
+  background-color: #4b5563; /* gray-600 */
+}
+
+.main-team-button-active {
+  background-color: #3b82f6; /* blue-500 */
 }
 
 .main-nav {

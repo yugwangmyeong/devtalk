@@ -49,6 +49,8 @@ export function ChatArea({
     ? otherUser.profileImageUrl
     : null;
 
+  console.log('[ChatArea] Rendering with room type:', room.type, 'room name:', room.name, 'isPersonalSpace:', room.isPersonalSpace);
+  
   return (
     <div className="chat-area-container">
       {/* Top Header with User Info and Search */}

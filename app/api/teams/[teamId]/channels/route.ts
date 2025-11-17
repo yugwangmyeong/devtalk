@@ -30,7 +30,7 @@ export async function GET(
     const resolvedParams = await Promise.resolve(params);
     const { teamId } = resolvedParams;
 
-    // Check if user is a member of the team
+    // Check if user is an ACCEPTED member of the team
     const teamMember = await prisma.teamMember.findUnique({
       where: {
         userId_teamId: {
@@ -40,9 +40,9 @@ export async function GET(
       },
     });
 
-    if (!teamMember) {
+    if (!teamMember || teamMember.status !== 'ACCEPTED') {
       return NextResponse.json(
-        { error: '팀 멤버가 아닙니다.' },
+        { error: '팀 멤버가 아닙니다. 초대를 수락해야 팀 채널에 접근할 수 있습니다.' },
         { status: 403 }
       );
     }
@@ -188,7 +188,7 @@ export async function POST(
       );
     }
 
-    // Check if user is a member of the team
+    // Check if user is an ACCEPTED member of the team
     const teamMember = await prisma.teamMember.findUnique({
       where: {
         userId_teamId: {
@@ -198,9 +198,9 @@ export async function POST(
       },
     });
 
-    if (!teamMember) {
+    if (!teamMember || teamMember.status !== 'ACCEPTED') {
       return NextResponse.json(
-        { error: '팀 멤버가 아닙니다.' },
+        { error: '팀 멤버가 아닙니다. 초대를 수락해야 채널을 생성할 수 있습니다.' },
         { status: 403 }
       );
     }
@@ -220,9 +220,13 @@ export async function POST(
       );
     }
 
-    // Get all team members to add them to the new channel
+    // Get all ACCEPTED team members to add them to the new channel
+    // PENDING invitations are not added until they accept
     const teamMembers = await prisma.teamMember.findMany({
-      where: { teamId: teamId },
+      where: { 
+        teamId: teamId,
+        status: 'ACCEPTED', // 수락된 멤버만 채널에 추가
+      },
       select: { userId: true },
     });
 

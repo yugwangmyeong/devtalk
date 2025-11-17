@@ -35,6 +35,7 @@ export interface Message {
     email: string;
     name: string | null;
     profileImageUrl: string | null;
+    teamRole?: 'OWNER' | 'ADMIN' | 'MEMBER' | null;
   };
 }
 

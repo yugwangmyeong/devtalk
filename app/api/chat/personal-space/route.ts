@@ -38,8 +38,9 @@ export async function GET(request: NextRequest) {
 
     const roomIds = userMemberships.map(m => m.chatRoomId);
     
-    // Find DM rooms with exactly 1 member (personal space)
-    const personalRoom = await prisma.chatRoom.findFirst({
+    // Find all DM rooms with exactly 1 member (personal space)
+    // Get the most recent one (by updatedAt) to ensure we use the same room
+    const personalRooms = await prisma.chatRoom.findMany({
       where: {
         id: {
           in: roomIds,
@@ -76,6 +77,19 @@ export async function GET(request: NextRequest) {
           },
         },
       },
+      orderBy: {
+        updatedAt: 'desc', // 가장 최근에 업데이트된 것을 먼저
+      },
+    });
+
+    // Filter to only personal spaces (exactly 1 member) and get the most recent one
+    const personalRoom = personalRooms.find(room => room.members.length === 1);
+
+    console.log('[API] Personal space lookup:', {
+      totalRooms: personalRooms.length,
+      personalSpaces: personalRooms.filter(r => r.members.length === 1).length,
+      selectedRoomId: personalRoom?.id,
+      selectedRoomUpdatedAt: personalRoom?.updatedAt,
     });
 
     // Check if it's truly a personal space (only one member - the user themselves)
@@ -113,6 +127,42 @@ export async function GET(request: NextRequest) {
     }
 
     // Create new personal space if it doesn't exist
+    // Double-check that no personal space exists before creating
+    const existingPersonalSpace = personalRooms.find(room => room.members.length === 1);
+    if (existingPersonalSpace) {
+      console.log('[API] Personal space already exists, returning existing one:', existingPersonalSpace.id);
+      // Return the existing one instead of creating a new one
+      const lastMessage = existingPersonalSpace.messages[0];
+      const formattedRoom = {
+        id: existingPersonalSpace.id,
+        type: existingPersonalSpace.type,
+        name: '나만의 공간',
+        isPersonalSpace: true,
+        members: existingPersonalSpace.members.map((m: typeof existingPersonalSpace.members[0]) => ({
+          id: m.user.id,
+          email: m.user.email,
+          name: m.user.name,
+          profileImageUrl: m.user.profileImageUrl,
+        })),
+        lastMessage: lastMessage
+          ? {
+              id: lastMessage.id,
+              content: lastMessage.content,
+              createdAt: lastMessage.createdAt.toISOString(),
+              user: {
+                id: lastMessage.user.id,
+                email: lastMessage.user.email,
+                name: lastMessage.user.name,
+              },
+            }
+          : null,
+        updatedAt: existingPersonalSpace.updatedAt.toISOString(),
+        createdAt: existingPersonalSpace.createdAt.toISOString(),
+      };
+      return NextResponse.json({ room: formattedRoom }, { status: 200 });
+    }
+
+    console.log('[API] No personal space found, creating new one');
     const newPersonalRoom = await prisma.chatRoom.create({
       data: {
         type: 'DM',

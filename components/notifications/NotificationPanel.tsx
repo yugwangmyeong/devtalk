@@ -65,12 +65,26 @@ export function NotificationPanel() {
     async (notification: Notification) => {
       if (!notification.teamId) return;
 
-      markAsRead(notification.id);
-      removeNotification(notification.id);
+      try {
+        const response = await fetch(`/api/teams/${notification.teamId}/members/accept`, {
+          method: 'POST',
+          credentials: 'include',
+        });
 
-      // 이미 멤버로 추가되어 있으므로 팀 페이지로 이동
-      router.push(`/teams?teamId=${notification.teamId}`);
-      closePanel();
+        if (response.ok) {
+          markAsRead(notification.id);
+          removeNotification(notification.id);
+          // 초대 수락 후 팀 페이지로 이동
+          router.push(`/teams?teamId=${notification.teamId}`);
+          closePanel();
+        } else {
+          const errorData = await response.json();
+          alert(errorData.error || '초대 수락에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('Failed to accept invite:', error);
+        alert('초대 수락에 실패했습니다.');
+      }
     },
     [markAsRead, removeNotification, router, closePanel]
   );

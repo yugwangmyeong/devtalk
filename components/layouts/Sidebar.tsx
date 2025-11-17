@@ -68,7 +68,8 @@ export function Sidebar() {
       <aside className="main-sidebar">
       {/* Team Button */}
       <button 
-        className="main-team-button"
+        className={`main-team-button ${selectedTeam ? 'main-team-button-active' : ''}`}
+        disabled={!!selectedTeam}
         onClick={() => {
           if (selectedTeam) {
             // 워크스페이스가 선택되어 있으면 채널 패널 토글

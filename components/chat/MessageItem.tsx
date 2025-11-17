@@ -153,6 +153,11 @@ export function MessageItem({ message, isOwnMessage, roomType, showTime = true, 
             <div className="chat-message-header">
               <span className="chat-message-sender">
                 {message.user.name || message.user.email}
+                {message.user.teamRole && message.user.teamRole !== 'MEMBER' && (
+                  <span className="chat-message-role-badge" title={message.user.teamRole === 'OWNER' ? '소유자' : message.user.teamRole === 'ADMIN' ? '관리자' : ''}>
+                    {message.user.teamRole === 'OWNER' ? '👑' : message.user.teamRole === 'ADMIN' ? '⭐' : ''}
+                  </span>
+                )}
               </span>
               {/* 같은 사용자가 1분 이내에 보낸 메시지일 경우 시간을 이름 옆에 표시 */}
               {shouldShowTimeInHeader && (

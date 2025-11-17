@@ -106,6 +106,7 @@ model TeamMember {
   userId    String
   teamId    String
   role      TeamRole  @default(MEMBER)
+  status    TeamMemberStatus @default(PENDING) // 초대 상태
   joinedAt  DateTime @default(now())
 
   // Relations
@@ -138,6 +139,11 @@ enum TeamRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+enum TeamMemberStatus {
+  PENDING   // 초대 대기 중
+  ACCEPTED  // 초대 수락됨
 }
 
 enum ChatRoomType {
