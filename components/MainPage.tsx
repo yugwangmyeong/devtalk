@@ -4,11 +4,24 @@ import { useEffect, useState } from 'react';
 import { MainLayout } from '@/components/layouts/MainLayout';
 import { useTeamViewStore } from '@/stores/useTeamViewStore';
 import { FriendsPanel } from '@/components/friends/FriendsPanel';
+import { UpcomingEventsSection } from '@/components/dashboard/UpcomingEventsSection';
+import { TeamActivitiesSection } from '@/components/dashboard/TeamActivitiesSection';
+import { TasksAnnouncementsSection } from '@/components/dashboard/TasksAnnouncementsSection';
 import './MainPage.css';
+
+interface DashboardData {
+  upcomingEvents: any[];
+  teamActivities: any[];
+}
 
 export function MainPage() {
   const { selectTeam, closeChannelsPanel } = useTeamViewStore();
   const [isFriendsPanelOpen, setIsFriendsPanelOpen] = useState(true);
+  const [dashboardData, setDashboardData] = useState<DashboardData>({
+    upcomingEvents: [],
+    teamActivities: [],
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
   // 홈 페이지 진입 시 워크스페이스 선택 초기화 및 친구 패널 열기
   useEffect(() => {
@@ -17,45 +30,52 @@ export function MainPage() {
     setIsFriendsPanelOpen(true);
   }, [selectTeam, closeChannelsPanel]);
 
+  // 대시보드 데이터 가져오기
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch('/api/dashboard');
+        if (response.ok) {
+          const data = await response.json();
+          setDashboardData({
+            upcomingEvents: data.upcomingEvents || [],
+            teamActivities: data.teamActivities || [],
+          });
+        } else {
+          console.error('Failed to fetch dashboard data');
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, []);
+
   return (
     <>
       <div className={isFriendsPanelOpen ? 'main-content-with-friends' : ''}>
         <MainLayout headerTitle="메인화면">
           <div className="main-page-content">
-            {/* Top Row - Two Cards */}
-            <div className="main-page-grid">
-              {/* Trending Posts Card */}
-              <div className="main-card">
-                <div className="main-card-header">
-                  <h2 className="main-card-title">🔥 Trending Posts</h2>
-                  <button className="main-card-button">View all</button>
-                </div>
-                <div className="main-card-content">
-                  {/* Placeholder for trending posts */}
-                </div>
+            {/* Dashboard Sections */}
+            <div className="dashboard-container">
+              {/* Top Row - Two Cards */}
+              <div className="dashboard-grid">
+                <UpcomingEventsSection
+                  events={dashboardData.upcomingEvents}
+                  isLoading={isLoading}
+                />
+                <TeamActivitiesSection
+                  activities={dashboardData.teamActivities}
+                  isLoading={isLoading}
+                />
               </div>
 
-              {/* Event Zone Card */}
-              <div className="main-card">
-                <div className="main-card-header">
-                  <h2 className="main-card-title">🗓️ Event Zone</h2>
-                  <button className="main-card-button">🗓️ Calendar</button>
-                </div>
-                <div className="main-card-content">
-                  {/* Placeholder for events */}
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Section - Recent Discussions */}
-            <div className="main-card">
-              <div className="main-card-header">
-                <h2 className="main-card-title">💬 Recent Discussions</h2>
-                <button className="main-card-button">Open board</button>
-              </div>
-              <div className="main-card-content">
-                {/* Placeholder for discussions */}
-              </div>
+              {/* Bottom Section - Tasks/Announcements */}
+              <TasksAnnouncementsSection />
             </div>
           </div>
         </MainLayout>
