@@ -1,0 +1,107 @@
+/* Teams Page Container */
+.teams-page-container {
+  display: flex;
+  height: 100vh;
+  background-color: #1F2128;
+}
+
+/* Teams Page Layout */
+.teams-page-layout {
+  flex: 1;
+  display: flex;
+  height: 100%;
+  background-color: #1F2128;
+  overflow: hidden;
+  /* 텍스트 선택 허용 */
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* Left Panel - Team List (when no team is selected) */
+.teams-panel-container {
+  width: 400px;
+  background-color: #2B2E34;
+  border-right: 1px solid #949494;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Channels Panel */
+.teams-channels-panel {
+  width: 300px;
+  background-color: #2B2E34;
+  border-right: 1px solid #949494;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  /* 텍스트 선택 허용 */
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* Chat Area */
+.teams-chat-area {
+  flex: 1;
+  background-color: #1F2128;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  /* 텍스트 선택 허용 */
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* ChatArea가 teams-chat-area 내부에서 제대로 작동하도록 */
+.teams-chat-area .chat-area-container {
+  height: 100%;
+}
+
+/* Empty State for Chat Area */
+.teams-chat-area .chat-empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 1rem;
+  background-color: #1F2128;
+}
+
+.teams-chat-area .chat-empty-state p {
+  margin: 0;
+  color: #6b7280;
+}
+
+/* Empty States */
+.teams-empty-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+
+/* Selected Channel Item */
+.team-channels-item-selected {
+  background-color: #4b5563 !important;
+}
+
+/* Loading State */
+.teams-loading-state {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #9ca3af;
+  font-size: 0.875rem;
+}
+

@@ -1,0 +1,204 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String?  @unique
+  password       String // Hashed password
+  profileImageUrl String? // Profile image URL
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relations
+  chatRooms      ChatRoomMember[]
+  messages      Message[]
+  teams         TeamMember[]
+  createdTeams  Team[]    @relation("TeamCreator")
+  createdEvents Event[]    @relation("EventCreator")
+  eventAttendees EventAttendee[]
+
+  @@map("users")
+}
+
+// ChatRoom model for DM and group chats
+model ChatRoom {
+  id        String   @id @default(cuid())
+  type      ChatRoomType @default(DM) // DM or GROUP
+  name      String?  // For group chats
+  teamId    String?  // Optional: team this room belongs to (deprecated, use TeamChannel instead)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  members   ChatRoomMember[]
+  messages  Message[]
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  teamChannel TeamChannel? // One-to-one relationship with TeamChannel
+
+  @@map("chat_rooms")
+}
+
+// ChatRoomMember - many-to-many relationship
+model ChatRoomMember {
+  id        String   @id @default(cuid())
+  userId    String
+  chatRoomId String
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatRoom  ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chatRoomId])
+  @@map("chat_room_members")
+}
+
+// Message model
+model Message {
+  id        String   @id @default(cuid())
+  content   String
+  userId    String
+  chatRoomId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatRoom  ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+
+  @@index([chatRoomId, createdAt])
+  @@map("messages")
+}
+
+// Team model for workspace/team grouping
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  description String?
+  iconUrl   String?  // Team icon URL (image URL or emoji)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  creatorId String   // User who created the team
+
+  // Relations
+  creator   User     @relation("TeamCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  members   TeamMember[]
+  chatRooms ChatRoom[]
+  channels  TeamChannel[]
+  events    Event[]
+
+  @@map("teams")
+}
+
+// TeamMember - many-to-many relationship between User and Team
+model TeamMember {
+  id        String   @id @default(cuid())
+  userId    String
+  teamId    String
+  role      TeamRole  @default(MEMBER)
+  status    TeamMemberStatus @default(PENDING) // 초대 상태
+  joinedAt  DateTime @default(now())
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, teamId])
+  @@map("team_members")
+}
+
+// TeamChannel model for team workspace channels
+model TeamChannel {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  teamId      String
+  chatRoomId  String   @unique // One-to-one with ChatRoom for messages
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  chatRoom    ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, name]) // Channel name must be unique within a team
+  @@map("team_channels")
+}
+
+enum TeamRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum TeamMemberStatus {
+  PENDING   // 초대 대기 중
+  ACCEPTED  // 초대 수락됨
+}
+
+enum ChatRoomType {
+  DM
+  GROUP
+}
+
+// Event model for team workspace calendar events
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  startDate   DateTime
+  endDate     DateTime
+  allDay      Boolean  @default(false)
+  location    String?
+  teamId      String   // Team workspace this event belongs to
+  createdById String   // User who created the event
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  creator     User     @relation("EventCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  attendees   EventAttendee[]
+
+  @@index([teamId, startDate])
+  @@index([startDate, endDate])
+  @@map("events")
+}
+
+// EventAttendee - many-to-many relationship between User and Event
+model EventAttendee {
+  id        String            @id @default(cuid())
+  userId    String
+  eventId   String
+  status    EventAttendeeStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+  @@map("event_attendees")
+}
+
+enum EventAttendeeStatus {
+  PENDING   // 초대 대기 중
+  ACCEPTED  // 참석 수락
+  DECLINED  // 참석 거절
+  TENTATIVE // 불확실
+}
