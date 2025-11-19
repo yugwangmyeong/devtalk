@@ -31,9 +31,16 @@ export function TeamEventsSection({ teamId, isExpanded, onToggleExpand }: TeamEv
       const response = await fetch(`/api/teams/${teamId}/events`);
       if (response.ok) {
         const data = await response.json();
-        // 최근 5개만 표시
+        const now = new Date();
+        const twoWeeksLater = new Date(now);
+        twoWeeksLater.setDate(now.getDate() + 14);
+
+        // 2주 이내 일정만 최대 5개까지 표시
         const upcomingEvents = (data.events || [])
-          .filter((e: Event) => new Date(e.endDate) >= new Date())
+          .filter((e: Event) => {
+            const start = new Date(e.startDate);
+            return start >= now && start <= twoWeeksLater;
+          })
           .slice(0, 5);
         setEvents(upcomingEvents);
       } else {

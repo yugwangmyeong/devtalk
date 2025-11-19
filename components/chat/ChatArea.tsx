@@ -88,6 +88,7 @@ export function ChatArea({
           isLoading={isLoadingMessages}
           isPersonalSpace={room.isPersonalSpace}
           roomType={room.type}
+          roomName={displayName}
         />
       </div>
 

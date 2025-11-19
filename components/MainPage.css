@@ -1,0 +1,12 @@
+.friends-panel-sidebar-attached {
+  position: fixed;
+  left: 80px;
+  top: 0;
+  z-index: 998;
+  height: 100vh;
+}
+
+.main-content-with-friends .main-content {
+  margin-left: 350px;
+}
+

@@ -229,6 +229,56 @@ export function ChatPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isAuthLoading]); // hasFetchedRooms는 내부에서 관리하므로 dependency 제외
 
+  // URL의 email 파라미터 처리: 해당 유저와의 DM 찾기 또는 생성
+  useEffect(() => {
+    const emailFromUrl = searchParams.get('email');
+    if (!emailFromUrl || !user || isLoadingRooms) {
+      return;
+    }
+
+    const handleEmailDM = async () => {
+      try {
+        console.log('[ChatPage] Email parameter found, fetching DM for:', emailFromUrl);
+        const response = await fetch(`/api/chat/rooms?email=${encodeURIComponent(emailFromUrl)}`, {
+          credentials: 'include',
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const dmRoom = data.rooms?.[0];
+          
+          if (dmRoom) {
+            console.log('[ChatPage] DM room found/created:', dmRoom.id);
+            
+            // 방 목록에 추가 (없으면)
+            setRooms((prevRooms) => {
+              const exists = prevRooms.find(r => r.id === dmRoom.id);
+              if (exists) {
+                return prevRooms;
+              }
+              return [...prevRooms, dmRoom];
+            });
+            
+            // 방 선택 및 URL 업데이트
+            setSelectedRoom(dmRoom);
+            router.replace(`/chat?roomId=${dmRoom.id}`);
+          }
+        } else {
+          const error = await response.json();
+          console.error('[ChatPage] Failed to fetch/create DM:', error);
+          alert(error.error || 'DM을 생성할 수 없습니다.');
+          // email 파라미터 제거
+          router.replace('/chat');
+        }
+      } catch (error) {
+        console.error('[ChatPage] Error handling email DM:', error);
+        router.replace('/chat');
+      }
+    };
+
+    handleEmailDM();
+  }, [searchParams, user, isLoadingRooms, router]);
+
   // URL의 roomId가 변경될 때만 선택된 방 업데이트 (방 목록은 다시 가져오지 않음)
   useEffect(() => {
     if (!rooms.length || !searchParams.get('roomId')) {
@@ -236,6 +286,11 @@ export function ChatPage() {
     }
 
     const roomIdFromUrl = searchParams.get('roomId');
+    // email 파라미터가 있으면 roomId 처리를 건너뜀 (위의 useEffect에서 처리)
+    if (searchParams.get('email')) {
+      return;
+    }
+
     const roomToSelect = rooms.find((r: ChatRoom) => r.id === roomIdFromUrl && (r.isPersonalSpace || r.type === 'DM'));
     
     if (roomToSelect && selectedRoom?.id !== roomToSelect.id) {

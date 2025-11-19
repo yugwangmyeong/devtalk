@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     // Get roomId from query params first for logging
     const { searchParams } = new URL(request.url);
     const roomId = searchParams.get('roomId');
-    
+
     console.log('[API] GET /api/chat/messages called:', {
       roomId,
       url: request.url,
@@ -124,11 +124,11 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    console.log('[API] Messages found:', {
-      count: messages.length,
-      messageIds: messages.map(m => m.id),
-      userIds: messages.map(m => m.userId),
-    });
+    // console.log('[API] Messages found:', {
+    //   count: messages.length,
+    //   messageIds: messages.map(m => m.id),
+    //   userIds: messages.map(m => m.userId),
+    // });
 
     // Reverse to get chronological order
     messages.reverse();
@@ -242,9 +242,9 @@ export async function POST(request: NextRequest) {
       where: { id: roomId },
       include: { members: true },
     });
-    
+
     const isPersonalSpace = chatRoom?.type === 'DM' && chatRoom?.members.length === 1;
-    
+
     console.log('[API] Creating message:', {
       roomId,
       userId: decoded.userId,

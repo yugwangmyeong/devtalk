@@ -1,4 +1,4 @@
-export type NotificationType = 'chat_invite' | 'message' | 'room_created' | 'user_joined' | 'team_invite';
+export type NotificationType = 'chat_invite' | 'message' | 'room_created' | 'user_joined' | 'team_invite' | 'friend_request';
 
 export interface Notification {
   id: string;
@@ -10,6 +10,8 @@ export interface Notification {
   userId?: string;
   teamId?: string;
   teamName?: string; // 워크스페이스 이름
+  channelId?: string; // 워크스페이스 채널 ID
+  friendshipId?: string; // 친구 요청 ID
   createdAt: string;
   read: boolean;
   user?: {

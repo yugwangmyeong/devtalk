@@ -4,6 +4,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 import type { Notification } from '@/types/notification';
+import { getProfileImageUrl } from '@/lib/utils';
 import './NotificationPanel.css';
 
 export function NotificationPanel() {
@@ -39,22 +40,45 @@ export function NotificationPanel() {
   // 알림 클릭 핸들러
   const handleNotificationClick = useCallback(
     (notification: Notification) => {
-      // team_invite 알림은 클릭해도 이동하지 않음 (버튼으로 처리)
-      if (notification.type === 'team_invite') {
+      // team_invite와 friend_request 알림은 클릭해도 이동하지 않음 (버튼으로 처리)
+      if (notification.type === 'team_invite' || notification.type === 'friend_request') {
         return;
       }
 
       markAsRead(notification.id);
 
-      // 채팅방 알림인 경우 해당 채팅방으로 이동
+      console.log('[NotificationPanel] Notification clicked:', {
+        type: notification.type,
+        roomId: notification.roomId,
+        teamId: notification.teamId,
+        channelId: notification.channelId,
+        title: notification.title,
+        roomName: notification.roomName,
+      });
+
+      // 워크스페이스 채널 알림인 경우 TeamsPage로 이동 (가장 우선순위)
+      // teamId와 channelId가 모두 있어야 워크스페이스 채널로 인식
+      // 이 조건을 가장 먼저 확인하여 팀 채널 알림이 DM으로 이동하지 않도록 함
+      if (notification.teamId && notification.channelId) {
+        console.log('[NotificationPanel] Navigating to TeamsPage (team channel):', {
+          teamId: notification.teamId,
+          channelId: notification.channelId,
+          title: notification.title,
+          roomName: notification.roomName,
+        });
+        router.push(`/teams?teamId=${notification.teamId}&channelId=${notification.channelId}`);
+        closePanel();
+        return;
+      }
+      
+      // 일반 채팅방 알림인 경우 해당 채팅방으로 이동 (DM 또는 개인 공간)
       if (notification.roomId) {
+        console.log('[NotificationPanel] Navigating to ChatPage:', {
+          roomId: notification.roomId,
+        });
         router.push(`/chat?roomId=${notification.roomId}`);
         closePanel();
-      }
-      // 팀 초대 알림인 경우 팀 페이지로 이동
-      else if (notification.teamId) {
-        router.push(`/teams?teamId=${notification.teamId}`);
-        closePanel();
+        return;
       }
     },
     [markAsRead, router, closePanel]
@@ -110,6 +134,98 @@ export function NotificationPanel() {
       } catch (error) {
         console.error('Failed to reject invite:', error);
         alert('초대 거절에 실패했습니다.');
+      }
+    },
+    [markAsRead, removeNotification]
+  );
+
+  // 친구 요청 수락 핸들러
+  const handleAcceptFriendRequest = useCallback(
+    async (notification: Notification) => {
+      if (!notification.friendshipId) {
+        console.error('[NotificationPanel] No friendshipId in notification:', notification);
+        return;
+      }
+
+      console.log('[NotificationPanel] Accepting friend request:', notification.friendshipId);
+
+      try {
+        const response = await fetch(`/api/friends/${notification.friendshipId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ action: 'ACCEPT' }),
+        });
+
+        console.log('[NotificationPanel] Accept response:', {
+          ok: response.ok,
+          status: response.status,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[NotificationPanel] Friend request accepted:', data);
+          markAsRead(notification.id);
+          removeNotification(notification.id);
+          
+          // FriendsPanel에 새로고침 이벤트 발생
+          window.dispatchEvent(new CustomEvent('friendsUpdated'));
+        } else {
+          const errorData = await response.json();
+          console.error('[NotificationPanel] Accept failed:', errorData);
+          alert(errorData.error || '친구 요청 수락에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('[NotificationPanel] Failed to accept friend request:', error);
+        alert('친구 요청 수락에 실패했습니다.');
+      }
+    },
+    [markAsRead, removeNotification]
+  );
+
+  // 친구 요청 거절 핸들러
+  const handleRejectFriendRequest = useCallback(
+    async (notification: Notification) => {
+      if (!notification.friendshipId) {
+        console.error('[NotificationPanel] No friendshipId in notification:', notification);
+        return;
+      }
+
+      console.log('[NotificationPanel] Declining friend request:', notification.friendshipId);
+
+      try {
+        const response = await fetch(`/api/friends/${notification.friendshipId}`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ action: 'DECLINE' }),
+        });
+
+        console.log('[NotificationPanel] Decline response:', {
+          ok: response.ok,
+          status: response.status,
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          console.log('[NotificationPanel] Friend request declined:', data);
+          markAsRead(notification.id);
+          removeNotification(notification.id);
+          
+          // FriendsPanel에 새로고침 이벤트 발생
+          window.dispatchEvent(new CustomEvent('friendsUpdated'));
+        } else {
+          const errorData = await response.json();
+          console.error('[NotificationPanel] Decline failed:', errorData);
+          alert(errorData.error || '친구 요청 거절에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('[NotificationPanel] Failed to reject friend request:', error);
+        alert('친구 요청 거절에 실패했습니다.');
       }
     },
     [markAsRead, removeNotification]
@@ -198,6 +314,12 @@ export function NotificationPanel() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
           </svg>
         );
+      case 'friend_request':
+        return (
+          <svg {...iconProps}>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+          </svg>
+        );
       default:
         return null;
     }
@@ -228,41 +350,52 @@ export function NotificationPanel() {
         ) : (
           <div className="notification-list">
             {notifications.map((notification) => {
-              // 디버깅: 메시지 알림의 경우 사용자 정보 확인
+              // 디버깅: 친구 요청 알림의 경우 friendshipId 확인
+              if (notification.type === 'friend_request') {
+                console.log('[NotificationPanel] Rendering friend_request notification:', {
+                  id: notification.id,
+                  friendshipId: notification.friendshipId,
+                  hasFriendshipId: !!notification.friendshipId,
+                  fullNotification: notification,
+                });
+              }
+              
+              // 디버깅: 메시지 알림의 경우 전체 정보 확인
               if (notification.type === 'message') {
                 console.log('[NotificationPanel] Rendering message notification:', {
                   id: notification.id,
+                  roomId: notification.roomId,
+                  teamId: notification.teamId,
+                  channelId: notification.channelId,
+                  title: notification.title,
+                  roomName: notification.roomName,
+                  hasTeamId: !!notification.teamId,
+                  hasChannelId: !!notification.channelId,
+                  isTeamChannel: !!(notification.teamId && notification.channelId),
                   userId: notification.user?.id,
                   profileImageUrl: notification.user?.profileImageUrl,
-                  profileImageUrlType: typeof notification.user?.profileImageUrl,
                   hasUser: !!notification.user,
-                  userObject: notification.user,
                 });
               }
               
               return (
               <div
                 key={notification.id}
-                className={`notification-item ${!notification.read ? 'unread' : ''} ${notification.type === 'team_invite' ? 'notification-item-invite' : ''}`}
+                className={`notification-item ${!notification.read ? 'unread' : ''} ${notification.type === 'team_invite' || notification.type === 'friend_request' ? 'notification-item-invite' : ''}`}
                 onClick={() => handleNotificationClick(notification)}
               >
-                {notification.type === 'message' ? (
+                {notification.type === 'message' || notification.type === 'friend_request' ? (
                   <div className="notification-item-avatar">
-                    {notification.user?.profileImageUrl ? (
-                      <img 
-                        src={notification.user.profileImageUrl} 
-                        alt={notification.user.name || notification.user.email || '사용자'}
-                        onError={(e) => {
-                          console.error('[NotificationPanel] Failed to load profile image:', notification.user?.profileImageUrl);
-                          e.currentTarget.style.display = 'none';
-                          e.currentTarget.nextElementSibling?.classList.add('show');
-                        }}
-                        onLoad={() => {
-                          console.log('[NotificationPanel] Profile image loaded successfully:', notification.user?.profileImageUrl);
-                        }}
-                      />
-                    ) : null}
-                    <div className={`notification-item-avatar-placeholder ${!notification.user?.profileImageUrl ? 'show' : ''}`}></div>
+                    <img 
+                      src={getProfileImageUrl(notification.user?.profileImageUrl)} 
+                      alt={notification.user?.name || notification.user?.email || '사용자'}
+                      onError={(e) => {
+                        console.error('[NotificationPanel] Failed to load profile image:', notification.user?.profileImageUrl);
+                      }}
+                      onLoad={() => {
+                        console.log('[NotificationPanel] Profile image loaded successfully:', notification.user?.profileImageUrl);
+                      }}
+                    />
                   </div>
                 ) : (
                   <div className="notification-item-icon">
@@ -304,6 +437,37 @@ export function NotificationPanel() {
                         onClick={(e) => {
                           e.stopPropagation();
                           handleRejectInvite(notification);
+                        }}
+                      >
+                        거절
+                      </button>
+                    </div>
+                  )}
+                  {notification.type === 'friend_request' && (
+                    <div className="notification-invite-actions">
+                      <button
+                        className="notification-invite-accept"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('[NotificationPanel] Accept button clicked:', {
+                            notificationId: notification.id,
+                            friendshipId: notification.friendshipId,
+                            hasFriendshipId: !!notification.friendshipId,
+                          });
+                          handleAcceptFriendRequest(notification);
+                        }}
+                      >
+                        수락
+                      </button>
+                      <button
+                        className="notification-invite-reject"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          console.log('[NotificationPanel] Reject button clicked:', {
+                            notificationId: notification.id,
+                            friendshipId: notification.friendshipId,
+                          });
+                          handleRejectFriendRequest(notification);
                         }}
                       >
                         거절

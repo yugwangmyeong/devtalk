@@ -241,11 +241,24 @@ export function TeamChannelsPanel({
     }
   };
 
-  // Handle search input change
+  // Handle search input change (no auto-search)
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
-    handleSearchUsers(value);
+    // Clear results when input changes
+    if (!value.trim()) {
+      setSearchResults([]);
+    }
+  };
+
+  // Handle search button click
+  const handleSearchButtonClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    await handleSearchUsers(searchQuery);
   };
 
   // Invite user to team
@@ -596,8 +609,22 @@ export function TeamChannelsPanel({
                   placeholder="이메일 또는 이름으로 검색..."
                   value={searchQuery}
                   onChange={handleSearchInputChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearchButtonClick(e);
+                    }
+                  }}
                   autoFocus
                 />
+                <button
+                  type="button"
+                  className="team-invite-search-button"
+                  onClick={handleSearchButtonClick}
+                  disabled={isSearching || !searchQuery.trim()}
+                >
+                  {isSearching ? '검색 중...' : '검색'}
+                </button>
               </div>
               {error && (
                 <div className="team-invite-error">

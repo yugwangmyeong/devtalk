@@ -1,6 +1,7 @@
 'use client';
 
 import type { Message } from './types';
+import { getProfileImageUrl } from '@/lib/utils';
 
 interface MessageItemProps {
   message: Message;
@@ -139,11 +140,7 @@ export function MessageItem({ message, isOwnMessage, roomType, showTime = true, 
       <div className="chat-message chat-message-channel">
         {showAvatar ? (
           <div className="chat-message-avatar">
-            {message.user.profileImageUrl ? (
-              <img src={message.user.profileImageUrl} alt={message.user.name || message.user.email} />
-            ) : (
-              <div className="chat-message-avatar-placeholder"></div>
-            )}
+            <img src={getProfileImageUrl(message.user.profileImageUrl)} alt={message.user.name || message.user.email} />
           </div>
         ) : (
           <div className="chat-message-avatar-spacer"></div>
@@ -188,11 +185,7 @@ export function MessageItem({ message, isOwnMessage, roomType, showTime = true, 
         <>
           {showAvatar ? (
             <div className="chat-message-avatar">
-              {message.user.profileImageUrl ? (
-                <img src={message.user.profileImageUrl} alt={message.user.name || message.user.email} />
-              ) : (
-                <div className="chat-message-avatar-placeholder"></div>
-              )}
+              <img src={getProfileImageUrl(message.user.profileImageUrl)} alt={message.user.name || message.user.email} />
             </div>
           ) : (
             <div className="chat-message-avatar-spacer"></div>

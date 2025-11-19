@@ -30,6 +30,8 @@ model User {
   createdTeams  Team[]    @relation("TeamCreator")
   createdEvents Event[]    @relation("EventCreator")
   eventAttendees EventAttendee[]
+  sentFriendRequests     Friendship[] @relation("FriendRequester")
+  receivedFriendRequests Friendship[] @relation("FriendAddressee")
 
   @@map("users")
 }
@@ -201,4 +203,30 @@ enum EventAttendeeStatus {
   ACCEPTED  // 참석 수락
   DECLINED  // 참석 거절
   TENTATIVE // 불확실
+}
+
+// Friendship model for user friendships
+model Friendship {
+  id          String         @id @default(cuid())
+  requesterId String         // User who sent the friend request
+  addresseeId String         // User who received the friend request
+  status      FriendshipStatus @default(PENDING)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  // Relations
+  requester   User           @relation("FriendRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  addressee   User           @relation("FriendAddressee", fields: [addresseeId], references: [id], onDelete: Cascade)
+
+  @@unique([requesterId, addresseeId])
+  @@index([requesterId, status])
+  @@index([addresseeId, status])
+  @@map("friendships")
+}
+
+enum FriendshipStatus {
+  PENDING   // 친구 요청 대기 중
+  ACCEPTED  // 친구 수락됨
+  DECLINED  // 친구 요청 거절됨
+  BLOCKED   // 차단됨
 }
