@@ -1,11 +1,14 @@
 .dashboard-section {
   background: linear-gradient(135deg, rgba(43, 46, 52, 0.95), rgba(30, 33, 40, 0.95));
-  border-radius: 20px;
-  padding: 28px;
+  border-radius: 18px;
+  padding: 22px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
-  margin-bottom: 28px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.32);
+  margin-bottom: 22px;
   backdrop-filter: blur(12px);
+  display: flex;
+  flex-direction: column;
+  max-height: 500px;
 }
 
 .dashboard-section--events {
@@ -102,7 +105,30 @@
 }
 
 .dashboard-section-content {
-  min-height: 120px;
+  min-height: 100px;
+  max-height: 380px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 4px;
+}
+
+/* 스크롤바 스타일링 */
+.dashboard-section-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dashboard-section-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+}
+
+.dashboard-section-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.dashboard-section-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .dashboard-loading,
@@ -141,8 +167,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px;
-  border-radius: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
   cursor: pointer;
   transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
   background: rgba(15, 23, 42, 0.35);
@@ -230,8 +256,8 @@
   display: flex;
   align-items: flex-start;
   gap: 16px;
-  padding: 14px;
-  border-radius: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
   cursor: pointer;
   transition: transform 0.2s, background 0.2s, box-shadow 0.2s;
   background: rgba(15, 23, 42, 0.35);

@@ -12,6 +12,8 @@ import { TeamChannelsPanel } from '@/components/teams/TeamChannelsPanel';
 import { getProfileImageUrl } from '@/lib/utils';
 import './css/MainLayout.css';
 
+const DEFAULT_TEAM_BUTTON_ICON = '/devtalk-mark.svg';
+
 export function Sidebar() {
   const router = useRouter();
   const { logout, user } = useAuthStore();
@@ -90,7 +92,11 @@ export function Sidebar() {
               <span>{selectedTeam.name[0]?.toUpperCase() || '팀'}</span>
             )
           ) : (
-            <span>팀</span>
+            <img
+              src={DEFAULT_TEAM_BUTTON_ICON}
+              alt="DevTALK workspace"
+              className="main-team-button-logo"
+            />
           )}
         </button>
 
