@@ -211,9 +211,48 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
     socket.on('roomMessageUpdate', handleRoomMessageUpdate);
 
+    // Handle team invitation notifications
+    const handleNotification = (data: {
+      id: string;
+      type: string;
+      title: string;
+      message: string;
+      teamId?: string;
+      teamName?: string;
+      createdAt: string;
+      read: boolean;
+      user?: {
+        id: string;
+        email: string;
+        name: string | null;
+        profileImageUrl: string | null;
+      };
+    }) => {
+      console.log('[NotificationProvider] Notification received:', data);
+      
+      // Only handle team_invite notifications here
+      // Other notifications (like messages) are handled by roomMessageUpdate
+      if (data.type === 'team_invite') {
+        addNotification({
+          id: data.id,
+          type: 'team_invite',
+          title: data.title,
+          message: data.message,
+          teamId: data.teamId,
+          teamName: data.teamName,
+          createdAt: data.createdAt,
+          read: data.read,
+          user: data.user,
+        });
+      }
+    };
+
+    socket.on('notification', handleNotification);
+
     return () => {
-      console.log('[NotificationProvider] Cleaning up notification listener');
+      console.log('[NotificationProvider] Cleaning up notification listeners');
       socket.off('roomMessageUpdate', handleRoomMessageUpdate);
+      socket.off('notification', handleNotification);
     };
   }, [socket, isConnected, isAuthenticated, user, addNotification]);
 

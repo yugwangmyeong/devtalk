@@ -80,7 +80,19 @@ export function Sidebar() {
           }
         }}
       >
-        {selectedTeam ? selectedTeam.name[0]?.toUpperCase() || '팀' : '팀'}
+        {selectedTeam ? (
+          selectedTeam.iconUrl ? (
+            selectedTeam.iconUrl.startsWith('emoji:') ? (
+              <span>{selectedTeam.iconUrl.replace('emoji:', '')}</span>
+            ) : (
+              <img src={selectedTeam.iconUrl} alt={selectedTeam.name} />
+            )
+          ) : (
+            <span>{selectedTeam.name[0]?.toUpperCase() || '팀'}</span>
+          )
+        ) : (
+          <span>팀</span>
+        )}
       </button>
 
       {/* Navigation */}

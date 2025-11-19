@@ -393,6 +393,7 @@
 .chat-messages-list {
   display: flex;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 0.5rem;
   min-height: 100%;
   /* 텍스트 선택 허용 */

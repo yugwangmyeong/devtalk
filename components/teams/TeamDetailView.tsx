@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTeamViewStore } from '@/stores/useTeamViewStore';
 import { useRouter } from 'next/navigation';
 import type { Team } from './TeamPanel';
+import { EventList } from './EventList';
 import './TeamDetailView.css';
 
 export interface Channel {
@@ -41,6 +42,7 @@ interface TeamDetailViewProps {
 export function TeamDetailView({ team }: TeamDetailViewProps) {
   const { selectTeam } = useTeamViewStore();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<'channels' | 'events'>('channels');
   const [channels, setChannels] = useState<Channel[]>([]);
   const [isLoadingChannels, setIsLoadingChannels] = useState(false);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
@@ -198,86 +200,109 @@ export function TeamDetailView({ team }: TeamDetailViewProps) {
           </div>
         </div>
 
-        <div className="team-detail-section">
-          <div className="team-detail-section-header">
-            <h3 className="team-detail-section-title">채널</h3>
-            {!showCreateChannelForm && (
-              <button
-                className="team-detail-add-channel"
-                onClick={() => setShowCreateChannelForm(true)}
-                title="채널 만들기"
-              >
-                +
-              </button>
-            )}
-          </div>
-          
-          {showCreateChannelForm && (
-            <form className="team-detail-create-channel-form" onSubmit={handleCreateChannel}>
-              <input
-                type="text"
-                className="team-detail-channel-input"
-                value={channelName}
-                onChange={(e) => setChannelName(e.target.value)}
-                placeholder="채널 이름 (예: 단체채팅1)"
-                maxLength={100}
-                required
-                autoFocus
-              />
-              <div className="team-detail-channel-form-actions">
-                <button
-                  type="button"
-                  className="team-detail-channel-form-button team-detail-channel-form-button-cancel"
-                  onClick={() => {
-                    setShowCreateChannelForm(false);
-                    setChannelName('');
-                    setError(null);
-                  }}
-                  disabled={isCreatingChannel}
-                >
-                  취소
-                </button>
-                <button
-                  type="submit"
-                  className="team-detail-channel-form-button team-detail-channel-form-button-submit"
-                  disabled={isCreatingChannel || !channelName.trim()}
-                >
-                  {isCreatingChannel ? '생성 중...' : '만들기'}
-                </button>
-              </div>
-            </form>
-          )}
-
-          {error && (
-            <div className="team-detail-error">
-              {error}
-            </div>
-          )}
-
-          <div className="team-detail-channels">
-            {isLoadingChannels ? (
-              <p className="team-detail-empty">로딩 중...</p>
-            ) : channels.length === 0 ? (
-              <p className="team-detail-empty">채널이 없습니다. + 버튼을 눌러 채널을 만들어보세요</p>
-            ) : (
-              channels.map((channel) => (
-                <div
-                  key={channel.id}
-                  className="team-detail-channel-item"
-                  onClick={() => handleChannelClick(channel)}
-                >
-                  <span className="team-detail-channel-prefix">#</span>
-                  <span className="team-detail-channel-name">{channel.name}</span>
-                  {channel.lastMessage && (
-                    <span className="team-detail-channel-preview">
-                      {channel.lastMessage.content}
-                    </span>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
+        <div className="team-detail-tabs">
+          <button
+            className={`team-detail-tab ${activeTab === 'channels' ? 'team-detail-tab-active' : ''}`}
+            onClick={() => setActiveTab('channels')}
+          >
+            💬 채널
+          </button>
+          <button
+            className={`team-detail-tab ${activeTab === 'events' ? 'team-detail-tab-active' : ''}`}
+            onClick={() => setActiveTab('events')}
+          >
+            📅 이벤트
+          </button>
         </div>
+
+        {activeTab === 'channels' && (
+          <div className="team-detail-section">
+            <div className="team-detail-section-header">
+              <h3 className="team-detail-section-title">채널</h3>
+              {!showCreateChannelForm && (
+                <button
+                  className="team-detail-add-channel"
+                  onClick={() => setShowCreateChannelForm(true)}
+                  title="채널 만들기"
+                >
+                  +
+                </button>
+              )}
+            </div>
+            
+            {showCreateChannelForm && (
+              <form className="team-detail-create-channel-form" onSubmit={handleCreateChannel}>
+                <input
+                  type="text"
+                  className="team-detail-channel-input"
+                  value={channelName}
+                  onChange={(e) => setChannelName(e.target.value)}
+                  placeholder="채널 이름 (예: 단체채팅1)"
+                  maxLength={100}
+                  required
+                  autoFocus
+                />
+                <div className="team-detail-channel-form-actions">
+                  <button
+                    type="button"
+                    className="team-detail-channel-form-button team-detail-channel-form-button-cancel"
+                    onClick={() => {
+                      setShowCreateChannelForm(false);
+                      setChannelName('');
+                      setError(null);
+                    }}
+                    disabled={isCreatingChannel}
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    className="team-detail-channel-form-button team-detail-channel-form-button-submit"
+                    disabled={isCreatingChannel || !channelName.trim()}
+                  >
+                    {isCreatingChannel ? '생성 중...' : '만들기'}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {error && (
+              <div className="team-detail-error">
+                {error}
+              </div>
+            )}
+
+            <div className="team-detail-channels">
+              {isLoadingChannels ? (
+                <p className="team-detail-empty">로딩 중...</p>
+              ) : channels.length === 0 ? (
+                <p className="team-detail-empty">채널이 없습니다. + 버튼을 눌러 채널을 만들어보세요</p>
+              ) : (
+                channels.map((channel) => (
+                  <div
+                    key={channel.id}
+                    className="team-detail-channel-item"
+                    onClick={() => handleChannelClick(channel)}
+                  >
+                    <span className="team-detail-channel-prefix">#</span>
+                    <span className="team-detail-channel-name">{channel.name}</span>
+                    {channel.lastMessage && (
+                      <span className="team-detail-channel-preview">
+                        {channel.lastMessage.content}
+                      </span>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'events' && (
+          <div className="team-detail-events-section">
+            <EventList teamId={team.id} />
+          </div>
+        )}
       </div>
     </div>
   );
