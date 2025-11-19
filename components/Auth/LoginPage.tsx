@@ -218,7 +218,12 @@ export function LoginPage() {
                 </button>
 
                 {/* Google Sign In Button */}
-                <button className="login-button google-button">
+                <button 
+                  className="login-button google-button"
+                  onClick={() => {
+                    window.location.href = '/api/auth/google';
+                  }}
+                >
                   <svg
                     className="google-icon"
                     viewBox="0 0 24 24"
