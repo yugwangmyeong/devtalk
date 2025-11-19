@@ -21,6 +21,7 @@
     "@types/ioredis": "^5.0.0",
     "autoprefixer": "^10.4.22",
     "bcryptjs": "^3.0.3",
+    "google-auth-library": "^10.5.0",
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.2",
     "next": "16.0.1",
