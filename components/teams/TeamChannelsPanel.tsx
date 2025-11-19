@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useTeamViewStore } from '@/stores/useTeamViewStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import type { Channel } from './TeamDetailView';
+import { TeamEventsSection } from './TeamEventsSection';
+import { TeamSettingsModal } from './TeamSettingsModal';
 import './TeamChannelsPanel.css';
 
 interface TeamChannelsPanelProps {
@@ -35,6 +37,7 @@ export function TeamChannelsPanel({
   const router = useRouter();
   const [internalChannels, setInternalChannels] = useState<Channel[]>([]);
   const [internalIsLoadingChannels, setInternalIsLoadingChannels] = useState(false);
+  const [isEventsExpanded, setIsEventsExpanded] = useState(true);
   const [isChannelsExpanded, setIsChannelsExpanded] = useState(true);
   const [isDMExpanded, setIsDMExpanded] = useState(true);
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
@@ -42,6 +45,7 @@ export function TeamChannelsPanel({
   const [channelName, setChannelName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [showInviteModal, setShowInviteModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Array<{ id: string; email: string; name: string | null; profileImageUrl: string | null }>>([]);
   const [isSearching, setIsSearching] = useState(false);
@@ -237,11 +241,24 @@ export function TeamChannelsPanel({
     }
   };
 
-  // Handle search input change
+  // Handle search input change (no auto-search)
   const handleSearchInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setSearchQuery(value);
-    handleSearchUsers(value);
+    // Clear results when input changes
+    if (!value.trim()) {
+      setSearchResults([]);
+    }
+  };
+
+  // Handle search button click
+  const handleSearchButtonClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    await handleSearchUsers(searchQuery);
   };
 
   // Invite user to team
@@ -328,18 +345,36 @@ export function TeamChannelsPanel({
         <div 
           className="team-channels-team-name"
           onClick={() => {
-            // Only OWNER and ADMIN can invite
+            // Only OWNER and ADMIN can access settings
             const userRole = selectedTeam?.role;
             if (userRole === 'OWNER' || userRole === 'ADMIN') {
-              setShowInviteModal(true);
+              setShowSettingsModal(true);
             }
           }}
           style={{ cursor: (selectedTeam?.role === 'OWNER' || selectedTeam?.role === 'ADMIN') ? 'pointer' : 'default' }}
         >
           <span className="team-channels-team-icon">
-            {selectedTeam.name[0]?.toUpperCase() || 'T'}
+            {selectedTeam.iconUrl && selectedTeam.iconUrl.startsWith('emoji:') ? (
+              selectedTeam.iconUrl.replace('emoji:', '')
+            ) : selectedTeam.iconUrl ? (
+              <img src={selectedTeam.iconUrl} alt={selectedTeam.name} className="team-channels-team-icon-image" />
+            ) : (
+              selectedTeam.name[0]?.toUpperCase() || 'T'
+            )}
           </span>
           <span className="team-channels-team-text">{selectedTeam.name}</span>
+        </div>
+        <div className="team-channels-header-actions">
+          {/* Only OWNER and ADMIN can invite members */}
+          {(selectedTeam?.role === 'OWNER' || selectedTeam?.role === 'ADMIN') && (
+            <button
+              className="team-channels-invite-button"
+              onClick={() => setShowInviteModal(true)}
+              title="멤버 초대"
+            >
+              +
+            </button>
+          )}
         </div>
         {/* <button
           className="team-channels-close"
@@ -356,6 +391,15 @@ export function TeamChannelsPanel({
           ×
         </button> */}
       </div>
+
+      {/* Events Section */}
+      {selectedTeam && (
+        <TeamEventsSection
+          teamId={selectedTeam.id}
+          isExpanded={isEventsExpanded}
+          onToggleExpand={() => setIsEventsExpanded(!isEventsExpanded)}
+        />
+      )}
 
       {/* Channels Section */}
       <div className="team-channels-section">
@@ -565,8 +609,22 @@ export function TeamChannelsPanel({
                   placeholder="이메일 또는 이름으로 검색..."
                   value={searchQuery}
                   onChange={handleSearchInputChange}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleSearchButtonClick(e);
+                    }
+                  }}
                   autoFocus
                 />
+                <button
+                  type="button"
+                  className="team-invite-search-button"
+                  onClick={handleSearchButtonClick}
+                  disabled={isSearching || !searchQuery.trim()}
+                >
+                  {isSearching ? '검색 중...' : '검색'}
+                </button>
               </div>
               {error && (
                 <div className="team-invite-error">
@@ -610,6 +668,23 @@ export function TeamChannelsPanel({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Team Settings Modal */}
+      {showSettingsModal && selectedTeam && (
+        <TeamSettingsModal
+          isOpen={showSettingsModal}
+          onClose={() => setShowSettingsModal(false)}
+          team={selectedTeam}
+          onTeamUpdated={() => {
+            // Refresh team data
+            if (onChannelCreated) {
+              onChannelCreated();
+            }
+            // You might want to refresh the team data here
+            window.location.reload(); // Temporary solution
+          }}
+        />
       )}
     </div>
   );

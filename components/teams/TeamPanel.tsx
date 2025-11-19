@@ -10,6 +10,7 @@ export interface Team {
   id: string;
   name: string;
   description: string | null;
+  iconUrl?: string | null;
   role: 'OWNER' | 'ADMIN' | 'MEMBER';
   createdAt: string;
   updatedAt: string;
@@ -296,7 +297,15 @@ export function TeamPanel({ isOpen, onClose, isFullPage = false }: TeamPanelProp
               >
                 <div className="team-item-header">
                   <div className="team-item-icon">
-                    {team.name[0]?.toUpperCase() || 'T'}
+                    {team.iconUrl ? (
+                      team.iconUrl.startsWith('emoji:') ? (
+                        <span>{team.iconUrl.replace('emoji:', '')}</span>
+                      ) : (
+                        <img src={team.iconUrl} alt={team.name} />
+                      )
+                    ) : (
+                      <span>{team.name[0]?.toUpperCase() || 'T'}</span>
+                    )}
                   </div>
                   <div className="team-item-info">
                     <div className="team-item-name">{team.name}</div>

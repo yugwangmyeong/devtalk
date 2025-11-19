@@ -27,14 +27,14 @@ export function DMPanel({
     isLoadingRooms,
     roomIds: rooms.map(r => r.id),
   });
-  
+
   const [emailInput, setEmailInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!emailInput.trim()) {
       setError('이메일을 입력해주세요.');
       return;
@@ -46,10 +46,8 @@ export function DMPanel({
       setError('올바른 이메일 형식을 입력해주세요.');
       return;
     }
-
     setIsSearching(true);
     setError(null);
-
     try {
       await onCreateDM(emailInput.trim());
       setEmailInput('');
@@ -68,7 +66,7 @@ export function DMPanel({
       </div>
 
       <div className="chat-dm-content">
-        <div className="chat-invitation-section">
+        {/* <div className="chat-invitation-section">
           <p className="chat-invitation-text">
             DevTALK은 함께할때 더 즐거워집니다.
           </p>
@@ -100,10 +98,7 @@ export function DMPanel({
               {error}
             </p>
           )}
-        </div>
-
-        <div className="chat-divider"></div>
-
+        </div> */}
         <ChatRoomList
           rooms={rooms}
           selectedRoom={selectedRoom}

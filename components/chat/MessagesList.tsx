@@ -10,31 +10,59 @@ interface MessagesListProps {
   isLoading: boolean;
   isPersonalSpace?: boolean;
   roomType: string;
+  roomName?: string;
 }
 
-export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpace, roomType }: MessagesListProps) {
+export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpace, roomType, roomName }: MessagesListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   
   console.log('[MessagesList] Rendering with roomType:', roomType, 'isPersonalSpace:', isPersonalSpace, 'messages count:', messages.length);
 
-  // 메시지가 로드되면 맨 아래로 스크롤
+  // 메시지가 로드되거나 새 메시지가 추가되면 맨 아래로 스크롤
   useEffect(() => {
     if (messages.length > 0 && !isLoading) {
+      // 약간의 지연을 두어 DOM이 업데이트된 후 스크롤
       setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        const container = messagesContainerRef.current?.parentElement as HTMLElement;
+        if (container) {
+          // 스크롤을 맨 아래로 이동 (카카오톡처럼)
+          container.scrollTop = container.scrollHeight;
+        } else {
+          // fallback: messagesEndRef 사용
+          messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+        }
       }, 100);
     }
-  }, [messages, isLoading]);
+  }, [messages.length, isLoading]);
 
   if (isLoading) {
     return <div className="chat-loading">메시지 로딩 중...</div>;
   }
 
   return (
-    <div className="chat-messages-list">
+    <div className="chat-messages-list" ref={messagesContainerRef}>
       {messages.length === 0 ? (
         <div className="chat-empty-messages">
-          메시지가 없습니다. 첫 메시지를 보내보세요!
+          {isPersonalSpace ? (
+            <div className="chat-empty-messages-content">
+              <div className="chat-empty-messages-icon">💭</div>
+              <div className="chat-empty-messages-title">나만의 공간</div>
+              <div className="chat-empty-messages-text">메모나 생각을 기록해보세요</div>
+            </div>
+          ) : roomType === 'DM' ? (
+            <div className="chat-empty-messages-content">
+              <div className="chat-empty-messages-icon">💬</div>
+              <div className="chat-empty-messages-title">대화를 시작해보세요</div>
+              <div className="chat-empty-messages-text">{roomName ? `${roomName}님과 대화를 시작해보세요` : '첫 메시지를 보내보세요'}</div>
+            </div>
+          ) : (
+            <div className="chat-empty-messages-content">
+              <div className="chat-empty-messages-icon">📢</div>
+              <div className="chat-empty-messages-title">채널에 메시지를 보내보세요</div>
+              <div className="chat-empty-messages-text">첫 메시지를 작성해보세요</div>
+            </div>
+          )}
         </div>
       ) : (
         // 중복 제거: 같은 ID를 가진 메시지가 여러 개 있으면 하나만 렌더링

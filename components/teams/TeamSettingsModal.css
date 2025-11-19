@@ -1,0 +1,274 @@
+.team-settings-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 3000;
+}
+
+.team-settings-modal {
+  background-color: #2B2E34;
+  border: 1px solid #374151;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.team-settings-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #374151;
+  background-color: #1F2128;
+}
+
+.team-settings-modal-title {
+  color: white;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.team-settings-modal-close {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: color 0.2s, background-color 0.2s;
+}
+
+.team-settings-modal-close:hover {
+  color: white;
+  background-color: #374151;
+}
+
+.team-settings-modal-content {
+  padding: 1.5rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.team-settings-icon-section {
+  margin-bottom: 1.5rem;
+}
+
+.team-settings-icon-preview {
+  position: relative;
+  display: inline-block;
+  margin-bottom: 0.75rem;
+}
+
+.team-settings-icon-image {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 2px solid #374151;
+}
+
+.team-settings-icon-placeholder {
+  width: 80px;
+  height: 80px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 700;
+  border: 2px solid #374151;
+}
+
+.team-settings-icon-upload-button {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  width: 32px;
+  height: 32px;
+  background-color: #3b82f6;
+  color: white;
+  border: 2px solid #2B2E34;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.team-settings-icon-upload-button:hover {
+  background-color: #2563eb;
+}
+
+.team-settings-icon-picker-toggle {
+  background: none;
+  border: 1px solid #374151;
+  color: #9ca3af;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.team-settings-icon-picker-toggle:hover {
+  border-color: #4b5563;
+  color: white;
+}
+
+.team-settings-icon-picker {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background-color: #1F2128;
+  border: 1px solid #374151;
+  border-radius: 8px;
+}
+
+.team-settings-icon-option {
+  width: 40px;
+  height: 40px;
+  background: none;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.team-settings-icon-option:hover {
+  background-color: #374151;
+  border-color: #4b5563;
+  transform: scale(1.1);
+}
+
+.team-settings-form-group {
+  margin-bottom: 1.5rem;
+}
+
+.team-settings-label {
+  display: block;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.team-settings-input,
+.team-settings-textarea {
+  width: 100%;
+  padding: 0.75rem;
+  background-color: #1F2128;
+  border: 1px solid #374151;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.875rem;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.team-settings-input:focus,
+.team-settings-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+
+.team-settings-textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.team-settings-error {
+  padding: 0.75rem;
+  background-color: #7f1d1d;
+  border: 1px solid #991b1b;
+  border-radius: 6px;
+  color: #fca5a5;
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.team-settings-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.team-settings-button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.team-settings-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.team-settings-button-cancel {
+  background-color: #374151;
+  color: white;
+}
+
+.team-settings-button-cancel:hover:not(:disabled) {
+  background-color: #4b5563;
+}
+
+.team-settings-button-submit {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.team-settings-button-submit:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+/* 스크롤바 스타일링 */
+.team-settings-modal-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.team-settings-modal-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.team-settings-modal-content::-webkit-scrollbar-thumb {
+  background: #4b5563;
+  border-radius: 3px;
+}
+
+.team-settings-modal-content::-webkit-scrollbar-thumb:hover {
+  background: #6b7280;
+}
+

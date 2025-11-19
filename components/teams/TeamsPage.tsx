@@ -128,6 +128,10 @@ export function TeamsPage() {
             console.log('[TeamsPage] Channel loaded from URL, room type:', room.type, 'channel:', channelToSelect.name);
             setSelectedRoom(room);
           }
+        } else {
+          // channelId가 없으면 선택된 채널 초기화
+          setSelectedChannel(null);
+          setSelectedRoom(null);
         }
       }
     } catch (error) {
@@ -145,6 +149,48 @@ export function TeamsPage() {
   useEffect(() => {
     fetchChannels();
   }, [fetchChannels]);
+
+  // URL의 channelId가 변경될 때 채널 선택 업데이트
+  useEffect(() => {
+    const channelIdFromUrl = searchParams.get('channelId');
+    const teamIdFromUrl = searchParams.get('teamId');
+    
+    // teamId와 channelId가 모두 있고, 채널 목록이 로드되었을 때만 처리
+    if (teamIdFromUrl && channelIdFromUrl && channels.length > 0 && selectedTeam) {
+      const channelToSelect = channels.find((c: Channel) => c.id === channelIdFromUrl);
+      
+      // 현재 선택된 채널과 다를 때만 업데이트
+      if (channelToSelect && selectedChannel?.id !== channelToSelect.id) {
+        console.log('[TeamsPage] URL channelId changed, selecting channel:', channelToSelect.name);
+        setSelectedChannel(channelToSelect);
+        // 채널을 ChatRoom 형태로 변환
+        const room: ChatRoom = {
+          id: channelToSelect.chatRoomId,
+          name: channelToSelect.name,
+          type: 'GROUP',
+          isPersonalSpace: false,
+          members: channelToSelect.members || [],
+          lastMessage: channelToSelect.lastMessage,
+          updatedAt: channelToSelect.updatedAt,
+        };
+        setSelectedRoom(room);
+        // DM ref 초기화
+        loadedDMUserIdRef.current = null;
+      } else if (!channelToSelect && channelIdFromUrl) {
+        // URL에 channelId가 있지만 채널을 찾을 수 없는 경우 초기화
+        console.log('[TeamsPage] Channel not found in list, clearing selection');
+        setSelectedChannel(null);
+        setSelectedRoom(null);
+        loadedDMUserIdRef.current = null;
+      }
+    } else if (!channelIdFromUrl && selectedChannel) {
+      // URL에 channelId가 없는데 채널이 선택되어 있으면 초기화
+      console.log('[TeamsPage] No channelId in URL, clearing selection');
+      setSelectedChannel(null);
+      setSelectedRoom(null);
+      loadedDMUserIdRef.current = null;
+    }
+  }, [searchParams, channels, selectedTeam, selectedChannel]);
 
   const { personalSpaceRoom: storePersonalSpaceRoom, fetchPersonalSpace } = usePersonalSpaceStore();
 

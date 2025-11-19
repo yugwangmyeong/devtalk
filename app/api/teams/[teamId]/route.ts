@@ -91,6 +91,7 @@ export async function GET(
       id: team.id,
       name: team.name,
       description: team.description,
+      iconUrl: team.iconUrl,
       role: teamMember.role,
       createdAt: team.createdAt.toISOString(),
       updatedAt: team.updatedAt.toISOString(),
@@ -145,7 +146,7 @@ export async function PATCH(
     const resolvedParams = await Promise.resolve(params);
     const { teamId } = resolvedParams;
     const body = await request.json();
-    const { name, description } = body;
+    const { name, description, iconUrl } = body;
 
     // Check if user is OWNER or ADMIN of the team
     const teamMember = await prisma.teamMember.findUnique({
@@ -189,12 +190,15 @@ export async function PATCH(
     }
 
     // Update team
-    const updateData: { name?: string; description?: string | null } = {};
+    const updateData: { name?: string; description?: string | null; iconUrl?: string | null } = {};
     if (name !== undefined) {
       updateData.name = name.trim();
     }
     if (description !== undefined) {
       updateData.description = description?.trim() || null;
+    }
+    if (iconUrl !== undefined) {
+      updateData.iconUrl = iconUrl?.trim() || null;
     }
 
     const updatedTeam = await prisma.team.update({
@@ -234,6 +238,7 @@ export async function PATCH(
       id: updatedTeam.id,
       name: updatedTeam.name,
       description: updatedTeam.description,
+      iconUrl: updatedTeam.iconUrl,
       role: teamMember.role,
       createdAt: updatedTeam.createdAt.toISOString(),
       updatedAt: updatedTeam.updatedAt.toISOString(),

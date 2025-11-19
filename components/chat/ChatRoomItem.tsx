@@ -2,6 +2,7 @@
 
 import type { ChatRoom } from './types';
 import type { User } from '@/stores/useAuthStore';
+import { getProfileImageUrl } from '@/lib/utils';
 
 interface ChatRoomItemProps {
   room: ChatRoom;
@@ -31,13 +32,13 @@ export function ChatRoomItem({ room, user, isSelected, onSelect }: ChatRoomItemP
 
   const getRoomAvatar = (room: ChatRoom) => {
     if (room.isPersonalSpace) {
-      return user?.profileImageUrl || null;
+      return getProfileImageUrl(user?.profileImageUrl);
     }
     if (room.type === 'DM') {
       const otherMember = getOtherMember(room);
-      return otherMember?.profileImageUrl || null;
+      return getProfileImageUrl(otherMember?.profileImageUrl);
     }
-    return null;
+    return getProfileImageUrl(null);
   };
 
   const formatLastMessageTime = (dateString: string): string => {
@@ -69,17 +70,13 @@ export function ChatRoomItem({ room, user, isSelected, onSelect }: ChatRoomItemP
       onClick={() => onSelect(room)}
     >
       <div className="chat-avatar">
-        {avatarUrl ? (
-          <img src={avatarUrl} alt={displayName} />
-        ) : (
-          <div className="chat-avatar-placeholder"></div>
-        )}
+        <img src={avatarUrl} alt={displayName} />
       </div>
       <div className="chat-dm-item-content">
         <div className="chat-dm-item-name">
           {displayName}
         </div>
-        {room.lastMessage && (
+        {room.lastMessage ? (
           <>
             <div className="chat-dm-item-last-message">
               {room.lastMessage.content}
@@ -88,6 +85,14 @@ export function ChatRoomItem({ room, user, isSelected, onSelect }: ChatRoomItemP
               {formatLastMessageTime(room.lastMessage.createdAt)}
             </div>
           </>
+        ) : (
+          <div className="chat-dm-item-last-message chat-dm-item-empty-message">
+            {room.isPersonalSpace 
+              ? '메모나 생각을 기록해보세요'
+              : room.type === 'DM'
+              ? '대화를 시작해보세요'
+              : '첫 메시지를 보내보세요'}
+          </div>
         )}
       </div>
     </div>

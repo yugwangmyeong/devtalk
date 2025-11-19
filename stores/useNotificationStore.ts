@@ -23,7 +23,11 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   isOpen: false,
 
   addNotification: (notification: Notification) => {
-    console.log('[NotificationStore] addNotification called:', notification);
+    console.log('[NotificationStore] addNotification called:', {
+      ...notification,
+      friendshipId: notification.friendshipId,
+      hasFriendshipId: !!notification.friendshipId,
+    });
     set((state) => {
       // 중복 체크: 같은 ID의 알림이 이미 있으면 추가하지 않음
       const existingNotification = state.notifications.find((n) => n.id === notification.id);
@@ -32,10 +36,20 @@ export const useNotificationStore = create<NotificationState>((set) => ({
         return state;
       }
 
-      // 새 알림 추가 (최대 개수 제한)
-      const newNotifications = [notification, ...state.notifications].slice(0, MAX_NOTIFICATIONS);
+      // 새 알림 추가 (최대 개수 제한) - friendshipId를 명시적으로 포함
+      const notificationToAdd: Notification = {
+        ...notification,
+        friendshipId: notification.friendshipId, // 명시적으로 포함
+      };
+      const newNotifications = [notificationToAdd, ...state.notifications].slice(0, MAX_NOTIFICATIONS);
       
-      console.log('[NotificationStore] Notification added, new count:', newNotifications.length, 'unread:', state.unreadCount + 1);
+      console.log('[NotificationStore] Notification added:', {
+        id: notificationToAdd.id,
+        type: notificationToAdd.type,
+        friendshipId: notificationToAdd.friendshipId,
+        hasFriendshipId: !!notificationToAdd.friendshipId,
+        newCount: newNotifications.length,
+      });
       
       return {
         notifications: newNotifications,

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { ChatRoom } from './types';
 import type { User } from '@/stores/useAuthStore';
+import { getProfileImageUrl } from '@/lib/utils';
 
 interface ChatRoomHeaderProps {
   room: ChatRoom;
@@ -84,24 +85,20 @@ export function ChatRoomHeader({ room, user }: ChatRoomHeaderProps) {
     if (room.isPersonalSpace) {
       // DB에서 가져온 사용자 정보 사용
       const displayUser = roomUser || room.members?.[0];
-      return displayUser?.profileImageUrl || user?.profileImageUrl || null;
+      return getProfileImageUrl(displayUser?.profileImageUrl || user?.profileImageUrl);
     }
     if (room.type === 'DM') {
       const otherMember = getOtherMember(room);
-      return otherMember?.profileImageUrl;
+      return getProfileImageUrl(otherMember?.profileImageUrl);
     }
-    return null;
+    return getProfileImageUrl(null);
   };
 
   return (
     <div className="chat-room-header">
       <div className="chat-room-header-info">
         <div className="chat-room-avatar">
-          {getRoomAvatar(room) ? (
-            <img src={getRoomAvatar(room)!} alt={getRoomDisplayName(room)} />
-          ) : (
-            <div className="chat-room-avatar-placeholder"></div>
-          )}
+          <img src={getRoomAvatar(room)} alt={getRoomDisplayName(room)} />
         </div>
         <div className="chat-room-header-text">
           <div className="chat-room-name">
