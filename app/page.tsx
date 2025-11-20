@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import { LoginPage } from '@/components/Auth/LoginPage';
 import { MainPage } from '@/components/MainPage';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 export default function Home() {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
@@ -26,11 +27,7 @@ export default function Home() {
   }, [searchParams, checkAuth]);
 
   if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">로딩 중...</div>
-      </div>
-    );
+    return <LoadingSpinner size="large" message="DevTalk에 접속하는 중..." fullScreen />;
   }
 
   return isAuthenticated ? <MainPage /> : <LoginPage />;

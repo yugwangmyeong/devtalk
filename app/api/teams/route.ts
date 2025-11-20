@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTokenFromCookies, verifyToken } from '@/lib/auth';
+import { cache, getCacheKey } from '@/lib/cache';
+import { measurePerformance } from '@/lib/performance';
 
 // Helper function to create default "일반채널" for a team
 async function createDefaultChannel(teamId: string, userId: string) {
@@ -47,23 +49,39 @@ async function createDefaultChannel(teamId: string, userId: string) {
 // Get all teams for the current user
 export async function GET(request: NextRequest) {
   try {
-    const token = getTokenFromCookies(request.cookies);
+    const { result, duration } = await measurePerformance('teams-api', async () => {
+      const token = getTokenFromCookies(request.cookies);
 
-    if (!token) {
-      return NextResponse.json(
-        { error: '인증되지 않았습니다.' },
-        { status: 401 }
-      );
-    }
+      if (!token) {
+        return NextResponse.json(
+          { error: '인증되지 않았습니다.' },
+          { status: 401 }
+        );
+      }
 
-    const decoded = verifyToken(token);
+      const decoded = verifyToken(token);
 
-    if (!decoded) {
-      return NextResponse.json(
-        { error: '유효하지 않은 토큰입니다.' },
-        { status: 401 }
-      );
-    }
+      if (!decoded) {
+        return NextResponse.json(
+          { error: '유효하지 않은 토큰입니다.' },
+          { status: 401 }
+        );
+      }
+
+      const userId = decoded.userId;
+      const cacheKey = getCacheKey('teams', userId);
+
+      // 1. 캐시에서 조회 시도
+      const cacheStart = Date.now();
+      const cached = await cache.get(cacheKey);
+      const cacheTime = Date.now() - cacheStart;
+      
+      if (cached) {
+        console.log(`[Teams API] ✅ Cache HIT (${cacheTime}ms) for user ${userId}`);
+        return cached;
+      }
+
+      console.log(`[Teams API] ❌ Cache MISS (${cacheTime}ms) for user ${userId} - DB 쿼리 실행`);
 
     // Get user info for default team creation
     const user = await prisma.user.findUnique({
@@ -191,28 +209,38 @@ export async function GET(request: NextRequest) {
       }];
     }
 
-    const teams = teamMembers.map((tm) => ({
-      id: tm.team.id,
-      name: tm.team.name,
-      description: tm.team.description,
-      iconUrl: tm.team.iconUrl,
-      role: tm.role,
-      createdAt: tm.team.createdAt.toISOString(),
-      updatedAt: tm.team.updatedAt.toISOString(),
-      creator: tm.team.creator,
-      members: tm.team.members.map((m) => ({
-        id: m.user.id,
-        email: m.user.email,
-        name: m.user.name,
-        profileImageUrl: m.user.profileImageUrl,
-        role: m.role,
-        joinedAt: m.joinedAt.toISOString(),
-      })),
-      memberCount: tm.team._count.members,
-      roomCount: tm.team._count.chatRooms,
-    }));
+      const teams = teamMembers.map((tm) => ({
+        id: tm.team.id,
+        name: tm.team.name,
+        description: tm.team.description,
+        iconUrl: tm.team.iconUrl,
+        role: tm.role,
+        createdAt: tm.team.createdAt.toISOString(),
+        updatedAt: tm.team.updatedAt.toISOString(),
+        creator: tm.team.creator,
+        members: tm.team.members.map((m) => ({
+          id: m.user.id,
+          email: m.user.email,
+          name: m.user.name,
+          profileImageUrl: m.user.profileImageUrl,
+          role: m.role,
+          joinedAt: m.joinedAt.toISOString(),
+        })),
+        memberCount: tm.team._count.members,
+        roomCount: tm.team._count.chatRooms,
+      }));
 
-    return NextResponse.json({ teams });
+      const response = { teams };
+
+      // 2. 결과를 캐시에 저장 (5분 TTL)
+      await cache.set(cacheKey, response, 300);
+
+      return response;
+    });
+
+    const response = NextResponse.json(result, { status: 200 });
+    response.headers.set('X-Response-Time', `${duration.toFixed(2)}ms`);
+    return response;
   } catch (error) {
     console.error('[GET /api/teams] Error:', error);
     return NextResponse.json(
@@ -311,6 +339,10 @@ export async function POST(request: NextRequest) {
       console.error('[POST /api/teams] Failed to create default channel:', error);
       // Continue even if channel creation fails - team is already created
     }
+
+    // 캐시 무효화 (새 팀 생성 시)
+    const cacheKey = getCacheKey('teams', decoded.userId);
+    await cache.delete(cacheKey);
 
     const teamResponse = {
       id: team.id,
