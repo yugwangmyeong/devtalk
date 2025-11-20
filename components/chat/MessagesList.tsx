@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, Fragment } from 'react';
 import { MessageItem } from './MessageItem';
 import type { Message } from './types';
 
@@ -16,6 +16,16 @@ interface MessagesListProps {
 export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpace, roomType, roomName }: MessagesListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const formatDateDivider = (dateString: string) => {
+    return new Intl.DateTimeFormat('ko-KR', { dateStyle: 'long' }).format(new Date(dateString));
+  };
+  const isSameDay = (dateA: Date, dateB: Date) => {
+    return (
+      dateA.getFullYear() === dateB.getFullYear() &&
+      dateA.getMonth() === dateB.getMonth() &&
+      dateA.getDate() === dateB.getDate()
+    );
+  };
   
   console.log('[MessagesList] Rendering with roomType:', roomType, 'isPersonalSpace:', isPersonalSpace, 'messages count:', messages.length);
 
@@ -90,6 +100,8 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
           
           const previousMessage = index > 0 ? uniqueMessages[index - 1] : null;
           const nextMessage = uniqueMessages[index + 1];
+          const currentMessageDate = new Date(message.createdAt);
+          const shouldShowDateDivider = !previousMessage || !isSameDay(currentMessageDate, new Date(previousMessage.createdAt));
           
           if (roomType === 'DM') {
             // DM: 프로필과 이름 - 1분 이내 연속 메시지면 숨김
@@ -151,17 +163,23 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
           }
           
           return (
-            <MessageItem
-              key={message.id}
-              message={message}
-              isOwnMessage={isOwnMessage}
-              roomType={roomType}
-              showTime={showTime}
-              showAvatar={showAvatar}
-              showSenderName={showSenderName}
-              previousMessage={previousMessage}
-              nextMessage={nextMessage}
-            />
+            <Fragment key={message.id}>
+              {shouldShowDateDivider && (
+                <div className="chat-date-divider">
+                  <span>{formatDateDivider(message.createdAt)}</span>
+                </div>
+              )}
+              <MessageItem
+                message={message}
+                isOwnMessage={isOwnMessage}
+                roomType={roomType}
+                showTime={showTime}
+                showAvatar={showAvatar}
+                showSenderName={showSenderName}
+                previousMessage={previousMessage}
+                nextMessage={nextMessage}
+              />
+            </Fragment>
           );
         });
         })()

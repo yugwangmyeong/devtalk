@@ -105,12 +105,74 @@ export function MessageItem({ message, isOwnMessage, roomType, showTime = true, 
 
   const formatSimpleTime = (dateString: string) => {
     const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+
+    // 10분 이내는 "10분 전" 형식
+    if (minutes <= 10) {
+      if (minutes < 1) return '방금';
+      return `${minutes}분 전`;
+    }
+
+    // 시간 형식 (오전/오후)
     const hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const mins = String(date.getMinutes()).padStart(2, '0');
     const period = hours >= 12 ? '오후' : '오전';
     const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
 
-    return `${period} ${displayHours}:${minutes}`;
+    return `${period} ${displayHours}:${mins}`;
+  };
+
+  const formatTimeForChannel = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diff = now.getTime() - date.getTime();
+    const minutes = Math.floor(diff / 60000);
+
+    // 10분 이내는 "10분 전" 형식
+    if (minutes <= 10) {
+      if (minutes < 1) return '방금';
+      return `${minutes}분 전`;
+    }
+
+    // 시간 형식 (오전/오후)
+    const hours = date.getHours();
+    const mins = String(date.getMinutes()).padStart(2, '0');
+    const period = hours >= 12 ? '오후' : '오전';
+    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    const timeString = `${period} ${displayHours}:${mins}`;
+
+    // 오늘인지 확인
+    const today = new Date();
+    const messageDate = new Date(dateString);
+    const isToday =
+      today.getFullYear() === messageDate.getFullYear() &&
+      today.getMonth() === messageDate.getMonth() &&
+      today.getDate() === messageDate.getDate();
+
+    // 오늘이면 시간만 표시
+    if (isToday) {
+      return timeString;
+    }
+
+    // 어제인지 확인
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const isYesterday =
+      yesterday.getFullYear() === messageDate.getFullYear() &&
+      yesterday.getMonth() === messageDate.getMonth() &&
+      yesterday.getDate() === messageDate.getDate();
+
+    if (isYesterday) {
+      return `어제 ${timeString}`;
+    }
+
+    // 그 외는 날짜 포함
+    const year = messageDate.getFullYear().toString().slice(-2);
+    const month = String(messageDate.getMonth() + 1).padStart(2, '0');
+    const day = String(messageDate.getDate()).padStart(2, '0');
+    return `${year}.${month}.${day}. ${timeString}`;
   };
 
   // 개인 DM인 경우와 워크스페이스 채널인 경우를 구분
@@ -169,7 +231,7 @@ export function MessageItem({ message, isOwnMessage, roomType, showTime = true, 
             {/* 이름 옆에 시간이 표시되지 않을 때만 메시지 옆에 시간 표시 */}
             {showTime && !shouldShowTimeInHeader && (
               <span className="chat-message-time">
-                {formatTimeForDM(message.createdAt)}
+                {formatTimeForChannel(message.createdAt)}
               </span>
             )}
           </div>

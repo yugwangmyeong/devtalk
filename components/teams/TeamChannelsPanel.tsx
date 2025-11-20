@@ -21,8 +21,8 @@ interface TeamChannelsPanelProps {
   onPersonalSpaceClick?: () => void; // 나만의 공간 클릭 핸들러
 }
 
-export function TeamChannelsPanel({ 
-  isOpen, 
+export function TeamChannelsPanel({
+  isOpen,
   onClose,
   channels: externalChannels,
   selectedChannel: externalSelectedChannel,
@@ -59,6 +59,7 @@ export function TeamChannelsPanel({
   const channels = externalChannels ?? internalChannels;
   const isLoadingChannels = externalIsLoadingChannels ?? internalIsLoadingChannels;
   const selectedChannel = externalSelectedChannel ?? null;
+  const currentUserRole = user ? teamMembers.find((member) => member.id === user.id)?.role : null;
 
   // Fetch channels for the selected team (only if not provided externally)
   const fetchChannels = useCallback(async () => {
@@ -194,7 +195,7 @@ export function TeamChannelsPanel({
     // 채널 아이템이나 다른 인터랙티브 요소를 클릭한 경우는 정상적으로 동작하도록 함
     const target = e.target as HTMLElement;
     const currentTarget = e.currentTarget as HTMLElement;
-    
+
     // 클릭한 요소가 리스트 컨테이너 자체인 경우에만 이벤트 전파 중지
     // 리스트 내부의 아이템을 클릭한 경우는 이벤트가 버블링되어 정상적으로 동작함
     if (target === currentTarget) {
@@ -277,7 +278,7 @@ export function TeamChannelsPanel({
     try {
       const url = `/api/teams/${selectedTeam.id}/members`;
       console.log('[TeamChannelsPanel] Sending invite request to:', url);
-      
+
       const response = await fetch(url, {
         method: 'POST',
         headers: {
@@ -292,16 +293,16 @@ export function TeamChannelsPanel({
       if (response.ok) {
         const data = await response.json();
         console.log('[TeamChannelsPanel] Invite successful:', data);
-        
+
         // Refresh team data if needed
         setSearchQuery('');
         setSearchResults([]);
         setShowInviteModal(false);
         setError(null);
-        
+
         // Refresh team members list
         fetchTeamMembers();
-        
+
         // Refresh channels if needed
         if (externalChannels === undefined) {
           fetchChannels();
@@ -327,7 +328,7 @@ export function TeamChannelsPanel({
     } catch (error) {
       console.error('[TeamChannelsPanel] Failed to invite user:', error);
       const errorMessage = error instanceof Error ? error.message : '초대에 실패했습니다.';
-        setError(`네트워크 오류: ${errorMessage}`);
+      setError(`네트워크 오류: ${errorMessage}`);
     } finally {
       setIsInviting(false);
       setInvitingUserId(null);
@@ -342,7 +343,7 @@ export function TeamChannelsPanel({
     <div className="team-channels-panel" ref={panelRef}>
       {/* Team Header */}
       <div className="team-channels-header">
-        <div 
+        <div
           className="team-channels-team-name"
           onClick={() => {
             // Only OWNER and ADMIN can access settings
@@ -403,7 +404,7 @@ export function TeamChannelsPanel({
 
       {/* Channels Section */}
       <div className="team-channels-section">
-        <div 
+        <div
           className="team-channels-section-header"
           onClick={() => setIsChannelsExpanded(!isChannelsExpanded)}
         >
@@ -421,10 +422,10 @@ export function TeamChannelsPanel({
                 +
               </button>
             )}
-            <svg 
+            <svg
               className={`team-channels-expand-icon ${isChannelsExpanded ? 'expanded' : ''}`}
-              fill="none" 
-              stroke="currentColor" 
+              fill="none"
+              stroke="currentColor"
               viewBox="0 0 24 24"
             >
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -500,15 +501,15 @@ export function TeamChannelsPanel({
 
       {/* DM Section */}
       <div className="team-channels-section">
-        <div 
+        <div
           className="team-channels-section-header"
           onClick={() => setIsDMExpanded(!isDMExpanded)}
         >
           <span className="team-channels-section-title">DM</span>
-          <svg 
+          <svg
             className={`team-channels-expand-icon ${isDMExpanded ? 'expanded' : ''}`}
-            fill="none" 
-            stroke="currentColor" 
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -523,7 +524,7 @@ export function TeamChannelsPanel({
               <>
                 {/* 본인 항목 - 나만의 공간으로 이동 */}
                 {user && (
-                  <div 
+                  <div
                     key={`self-${user.id}`}
                     className="team-channels-dm-item"
                     onClick={(e) => {
@@ -544,6 +545,7 @@ export function TeamChannelsPanel({
                     </div>
                     <span className="team-channels-dm-name">
                       {user.name || user.email}(나)
+                      {(currentUserRole === 'OWNER' || currentUserRole === 'ADMIN') && ' 👑'}
                     </span>
                   </div>
                 )}
@@ -551,8 +553,8 @@ export function TeamChannelsPanel({
                 {teamMembers
                   .filter((member) => member.id !== user?.id) // 현재 사용자 제외
                   .map((member) => (
-                    <div 
-                      key={member.id} 
+                    <div
+                      key={member.id}
                       className="team-channels-dm-item"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -571,8 +573,7 @@ export function TeamChannelsPanel({
                       </div>
                       <span className="team-channels-dm-name">
                         {member.name || member.email}
-                        {member.role === 'OWNER' && ' 👑'}
-                        {member.role === 'ADMIN' && ' ⭐'}
+                        {(member.role === 'OWNER' || member.role === 'ADMIN') && ' 👑'}
                       </span>
                     </div>
                   ))
