@@ -184,7 +184,7 @@ export function LoginPage() {
         {/* Left Side - Logo */}
         <div className="logo-container">
           <Image
-            src="/devtalk-logo.png?v=2"
+            src="/devtalk-logo.svg"
             alt="DevTALK Logo"
             width={128}
             height={128}

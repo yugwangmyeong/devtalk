@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTokenFromCookies, verifyToken } from '@/lib/auth';
+import { measurePerformance } from '@/lib/performance';
 
 // Get dashboard data: upcoming events and team activities
 export async function GET(request: NextRequest) {
   try {
-    const token = getTokenFromCookies(request.cookies);
+    const { result, duration } = await measurePerformance('dashboard-api', async () => {
+      const token = getTokenFromCookies(request.cookies);
 
     if (!token) {
       return NextResponse.json(
@@ -240,13 +242,20 @@ export async function GET(request: NextRequest) {
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
 
-    // Take top 10 most recent activities
-    const teamActivities = activities.slice(0, 10);
+      // Take top 10 most recent activities
+      const teamActivities = activities.slice(0, 10);
 
-    return NextResponse.json({
-      upcomingEvents: formattedEvents,
-      teamActivities,
+      return {
+        upcomingEvents: formattedEvents,
+        teamActivities,
+      };
     });
+
+    // 성능 정보를 응답 헤더에 추가 (선택사항)
+    const response = NextResponse.json(result, { status: 200 });
+    response.headers.set('X-Response-Time', `${duration.toFixed(2)}ms`);
+    
+    return response;
   } catch (error) {
     console.error('[GET /api/dashboard] Error:', error);
     return NextResponse.json(

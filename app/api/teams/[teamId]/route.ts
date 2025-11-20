@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTokenFromCookies, verifyToken } from '@/lib/auth';
+import { cache, getCacheKey } from '@/lib/cache';
+import { measurePerformance } from '@/lib/performance';
 
 // Get team by ID
 export async function GET(
@@ -8,27 +10,39 @@ export async function GET(
   { params }: { params: Promise<{ teamId: string }> | { teamId: string } }
 ) {
   try {
-    const token = getTokenFromCookies(request.cookies);
+    const { result, duration } = await measurePerformance('team-detail-api', async () => {
+      const token = getTokenFromCookies(request.cookies);
 
-    if (!token) {
-      return NextResponse.json(
-        { error: '인증되지 않았습니다.' },
-        { status: 401 }
-      );
-    }
+      if (!token) {
+        return NextResponse.json(
+          { error: '인증되지 않았습니다.' },
+          { status: 401 }
+        );
+      }
 
-    const decoded = verifyToken(token);
+      const decoded = verifyToken(token);
 
-    if (!decoded) {
-      return NextResponse.json(
-        { error: '유효하지 않은 토큰입니다.' },
-        { status: 401 }
-      );
-    }
+      if (!decoded) {
+        return NextResponse.json(
+          { error: '유효하지 않은 토큰입니다.' },
+          { status: 401 }
+        );
+      }
 
-    // Handle params as Promise or object
-    const resolvedParams = await Promise.resolve(params);
-    const { teamId } = resolvedParams;
+      // Handle params as Promise or object
+      const resolvedParams = await Promise.resolve(params);
+      const { teamId } = resolvedParams;
+
+      const cacheKey = getCacheKey('team', teamId, decoded.userId);
+
+      // 1. 캐시에서 조회 시도
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        console.log(`[Team Detail API] Cache hit for team ${teamId}`);
+        return cached;
+      }
+
+      console.log(`[Team Detail API] Cache miss for team ${teamId}`);
 
     // Check if user is a member of the team
     const teamMember = await prisma.teamMember.findUnique({
@@ -87,28 +101,38 @@ export async function GET(
       );
     }
 
-    const teamResponse = {
-      id: team.id,
-      name: team.name,
-      description: team.description,
-      iconUrl: team.iconUrl,
-      role: teamMember.role,
-      createdAt: team.createdAt.toISOString(),
-      updatedAt: team.updatedAt.toISOString(),
-      creator: team.creator,
-      members: team.members.map((m) => ({
-        id: m.user.id,
-        email: m.user.email,
-        name: m.user.name,
-        profileImageUrl: m.user.profileImageUrl,
-        role: m.role,
-        joinedAt: m.joinedAt.toISOString(),
-      })),
-      memberCount: team._count.members,
-      roomCount: team._count.chatRooms,
-    };
+      const teamResponse = {
+        id: team.id,
+        name: team.name,
+        description: team.description,
+        iconUrl: team.iconUrl,
+        role: teamMember.role,
+        createdAt: team.createdAt.toISOString(),
+        updatedAt: team.updatedAt.toISOString(),
+        creator: team.creator,
+        members: team.members.map((m) => ({
+          id: m.user.id,
+          email: m.user.email,
+          name: m.user.name,
+          profileImageUrl: m.user.profileImageUrl,
+          role: m.role,
+          joinedAt: m.joinedAt.toISOString(),
+        })),
+        memberCount: team._count.members,
+        roomCount: team._count.chatRooms,
+      };
 
-    return NextResponse.json({ team: teamResponse }, { status: 200 });
+      const response = { team: teamResponse };
+
+      // 2. 결과를 캐시에 저장 (5분 TTL)
+      await cache.set(cacheKey, response, 300);
+
+      return response;
+    });
+
+    const response = NextResponse.json(result, { status: 200 });
+    response.headers.set('X-Response-Time', `${duration.toFixed(2)}ms`);
+    return response;
   } catch (error) {
     console.error('[GET /api/teams/[teamId]] Error:', error);
     return NextResponse.json(
@@ -254,6 +278,12 @@ export async function PATCH(
       memberCount: updatedTeam._count.members,
       roomCount: updatedTeam._count.chatRooms,
     };
+
+    // 캐시 무효화 (팀 정보 업데이트 시)
+    const cacheKey = getCacheKey('team', teamId, decoded.userId);
+    await cache.delete(cacheKey);
+    // 팀 목록 캐시도 무효화
+    await cache.delete(getCacheKey('teams', decoded.userId));
 
     return NextResponse.json({ team: teamResponse }, { status: 200 });
   } catch (error) {

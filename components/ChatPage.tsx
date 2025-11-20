@@ -79,6 +79,19 @@ export function ChatPage() {
       try {
         console.log('[ChatPage] Starting to fetch rooms');
 
+        // URL 파라미터 먼저 확인 (email이나 roomId가 있으면 개인 공간을 기본 선택하지 않음)
+        // window.location.href를 사용하여 최신 URL 파라미터 가져오기
+        const urlParams = new URLSearchParams(window.location.search);
+        const emailFromUrl = urlParams.get('email');
+        const roomIdFromUrl = urlParams.get('roomId');
+        const shouldSkipPersonalSpaceSelection = !!(emailFromUrl || roomIdFromUrl);
+        
+        console.log('[ChatPage] URL params check:', {
+          emailFromUrl,
+          roomIdFromUrl,
+          shouldSkipPersonalSpaceSelection,
+        });
+
         // 먼저 개인 공간이 존재하는지 확인 (생성/확인용)
         // 이 API는 개인 공간이 없으면 생성함
         let personalSpaceRoom: ChatRoom | null = null;
@@ -103,7 +116,7 @@ export function ChatPage() {
               setPersonalSpaceRoom(roomForStore);
             }
 
-            // 개인 공간을 즉시 rooms 배열에 추가하고 선택
+            // 개인 공간을 즉시 rooms 배열에 추가 (선택은 조건부로)
             if (personalSpaceRoom) {
               // 개인 공간을 즉시 추가 (초기 로딩 시 빠른 표시를 위해)
               setRooms((prevRooms) => {
@@ -126,8 +139,14 @@ export function ChatPage() {
                 }
               });
 
-              // 개인 공간을 기본으로 선택 (URL 처리는 별도 useEffect에서)
-              setSelectedRoom(personalSpaceRoom);
+              // URL 파라미터가 없을 때만 개인 공간을 기본으로 선택
+              // (email이나 roomId가 있으면 나중에 처리될 때까지 선택하지 않음)
+              if (!shouldSkipPersonalSpaceSelection) {
+                console.log('[ChatPage] No URL params, will select personal space as default after rooms are loaded');
+                // 개인 공간 선택은 모든 방이 로드된 후에 처리 (아래 코드에서)
+              } else {
+                console.log('[ChatPage] URL params detected, skipping personal space selection');
+              }
             }
           } else {
             const errorData = await personalSpaceResponse.json().catch(() => ({}));
@@ -200,20 +219,36 @@ export function ChatPage() {
         const finalPersonalSpaceRoom = uniqueRooms.find((r: ChatRoom) => r.isPersonalSpace) || personalSpaceRoom;
         console.log('[ChatPage] Final personal space room:', finalPersonalSpaceRoom?.id, finalPersonalSpaceRoom?.name);
 
-        // URL에서 roomId 읽어서 채팅방 선택 (없으면 개인 공간)
-        const roomIdFromUrl = new URL(window.location.href).searchParams.get('roomId');
-        if (roomIdFromUrl) {
-          const roomToSelect = uniqueRooms.find((r: ChatRoom) => r.id === roomIdFromUrl && (r.isPersonalSpace || r.type === 'DM'));
+        // URL 파라미터 재확인 (이미 위에서 확인했지만 여기서도 확인)
+        // window.location.href를 사용하여 최신 URL 파라미터 가져오기
+        const currentUrlParams = new URLSearchParams(window.location.search);
+        const currentRoomIdFromUrl = currentUrlParams.get('roomId');
+        const currentEmailFromUrl = currentUrlParams.get('email');
+        
+        // email 파라미터가 있으면 나중에 처리될 때까지 선택하지 않음
+        if (currentEmailFromUrl) {
+          console.log('[ChatPage] Email param detected, skipping room selection (will be handled by email useEffect)');
+          return;
+        }
+
+        // URL에서 roomId 읽어서 채팅방 선택
+        if (currentRoomIdFromUrl) {
+          const roomToSelect = uniqueRooms.find((r: ChatRoom) => r.id === currentRoomIdFromUrl && (r.isPersonalSpace || r.type === 'DM'));
           if (roomToSelect) {
             setSelectedRoom(roomToSelect);
             console.log('[ChatPage] Selected room from URL:', roomToSelect.id);
-          } else if (finalPersonalSpaceRoom) {
-            setSelectedRoom(finalPersonalSpaceRoom);
-            router.replace(`/chat?roomId=${finalPersonalSpaceRoom.id}`);
+            return;
           }
-        } else if (finalPersonalSpaceRoom) {
+        }
+
+        // URL 파라미터가 없고 아직 방을 선택하지 않았을 때만 개인 공간 선택
+        // email 파라미터가 있으면 선택하지 않음 (email 처리 useEffect에서 처리됨)
+        if (!shouldSkipPersonalSpaceSelection && finalPersonalSpaceRoom && !selectedRoom) {
+          console.log('[ChatPage] No URL params and no selected room, selecting personal space as default');
           setSelectedRoom(finalPersonalSpaceRoom);
           router.replace(`/chat?roomId=${finalPersonalSpaceRoom.id}`);
+        } else if (shouldSkipPersonalSpaceSelection) {
+          console.log('[ChatPage] URL params detected, skipping personal space selection');
         }
       } catch (error) {
         console.error('[ChatPage] Failed to fetch rooms:', error);
@@ -230,15 +265,29 @@ export function ChatPage() {
   }, [user, isAuthLoading]); // hasFetchedRooms는 내부에서 관리하므로 dependency 제외
 
   // URL의 email 파라미터 처리: 해당 유저와의 DM 찾기 또는 생성
+  // 우선순위를 높여서 먼저 처리 (개인 공간이 렌더링되기 전에)
   useEffect(() => {
     const emailFromUrl = searchParams.get('email');
-    if (!emailFromUrl || !user || isLoadingRooms) {
+    if (!emailFromUrl || !user) {
       return;
+    }
+
+    // 로딩 중이면 잠시 대기하되, 너무 오래 걸리지 않도록 처리
+    if (isLoadingRooms) {
+      // 방 목록이 아직 로딩 중이면 잠시 후 다시 시도 (최대 2초)
+      const timeout = setTimeout(() => {
+        console.log('[ChatPage] Rooms still loading, but proceeding with email DM');
+      }, 2000);
+      return () => clearTimeout(timeout);
     }
 
     const handleEmailDM = async () => {
       try {
         console.log('[ChatPage] Email parameter found, fetching DM for:', emailFromUrl);
+        
+        // 즉시 선택된 방을 null로 설정하여 개인 공간이 렌더링되지 않도록 함
+        setSelectedRoom(null);
+        
         const response = await fetch(`/api/chat/rooms?email=${encodeURIComponent(emailFromUrl)}`, {
           credentials: 'include',
         });
@@ -259,7 +308,7 @@ export function ChatPage() {
               return [...prevRooms, dmRoom];
             });
             
-            // 방 선택 및 URL 업데이트
+            // 방 선택 및 URL 업데이트 (동시에 처리하여 깜빡임 방지)
             setSelectedRoom(dmRoom);
             router.replace(`/chat?roomId=${dmRoom.id}`);
           }
@@ -267,7 +316,7 @@ export function ChatPage() {
           const error = await response.json();
           console.error('[ChatPage] Failed to fetch/create DM:', error);
           alert(error.error || 'DM을 생성할 수 없습니다.');
-          // email 파라미터 제거
+          // email 파라미터 제거하고 개인 공간으로 이동
           router.replace('/chat');
         }
       } catch (error) {

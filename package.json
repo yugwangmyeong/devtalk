@@ -7,13 +7,22 @@
     "build": "prisma generate && next build",
     "start": "cross-env NODE_ENV=production tsx server.ts",
     "lint": "eslint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:performance": "vitest run tests/performance",
+    "benchmark": "tsx tests/performance/benchmark.ts",
+    "test:redis": "tsx tests/performance/redis-comparison.ts",
+    "test:redis:improved": "tsx tests/performance/redis-comparison-improved.ts",
+    "test:redis:user": "tsx tests/performance/test-specific-user.ts",
+    "test:load": "tsx tests/performance/load-test.ts",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset --force",
     "db:reset-chat": "tsx prisma/reset-chat.ts",
-    "db:reset-all": "tsx prisma/reset-db.ts"
+    "db:reset-all": "tsx prisma/reset-db.ts",
+    "db:seed:performance": "tsx prisma/seed-performance.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.929.0",
@@ -46,6 +55,7 @@
     "eslint-config-next": "16.0.1",
     "prisma": "^6.19.0",
     "tsx": "^4.20.6",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.0"
   }
 }

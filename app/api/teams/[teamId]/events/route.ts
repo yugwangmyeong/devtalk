@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTokenFromCookies, verifyToken } from '@/lib/auth';
+import { cache, getCacheKey } from '@/lib/cache';
+import { measurePerformance } from '@/lib/performance';
 
 // Get all events for a team
 export async function GET(
@@ -8,29 +10,30 @@ export async function GET(
   { params }: { params: Promise<{ teamId: string }> | { teamId: string } }
 ) {
   try {
-    const token = getTokenFromCookies(request.cookies);
+    const { result, duration } = await measurePerformance('team-events-api', async () => {
+      const token = getTokenFromCookies(request.cookies);
 
-    if (!token) {
-      return NextResponse.json(
-        { error: '인증되지 않았습니다.' },
-        { status: 401 }
-      );
-    }
+      if (!token) {
+        return NextResponse.json(
+          { error: '인증되지 않았습니다.' },
+          { status: 401 }
+        );
+      }
 
-    const decoded = verifyToken(token);
+      const decoded = verifyToken(token);
 
-    if (!decoded) {
-      return NextResponse.json(
-        { error: '유효하지 않은 토큰입니다.' },
-        { status: 401 }
-      );
-    }
+      if (!decoded) {
+        return NextResponse.json(
+          { error: '유효하지 않은 토큰입니다.' },
+          { status: 401 }
+        );
+      }
 
-    const resolvedParams = await Promise.resolve(params);
-    const { teamId } = resolvedParams;
+      const resolvedParams = await Promise.resolve(params);
+      const { teamId } = resolvedParams;
 
-    // Check if user is a member of the team
-    const teamMember = await prisma.teamMember.findUnique({
+      // Check if user is a member of the team
+      const teamMember = await prisma.teamMember.findUnique({
       where: {
         userId_teamId: {
           userId: decoded.userId,
@@ -46,12 +49,26 @@ export async function GET(
       );
     }
 
-    // Get query parameters for filtering
-    const startDate = request.nextUrl.searchParams.get('startDate');
-    const endDate = request.nextUrl.searchParams.get('endDate');
+      // Get query parameters for filtering
+      const startDate = request.nextUrl.searchParams.get('startDate');
+      const endDate = request.nextUrl.searchParams.get('endDate');
 
-    // Build where clause
-    const where: any = { teamId };
+      // 캐시 키에 날짜 필터 포함 (필터가 있으면 별도 캐시)
+      const cacheKey = startDate || endDate
+        ? getCacheKey('team-events', teamId, decoded.userId, startDate || '', endDate || '')
+        : getCacheKey('team-events', teamId, decoded.userId);
+
+      // 1. 캐시에서 조회 시도
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        console.log(`[Team Events API] Cache hit for team ${teamId}`);
+        return cached;
+      }
+
+      console.log(`[Team Events API] Cache miss for team ${teamId}`);
+
+      // Build where clause
+      const where: any = { teamId };
 
     if (startDate || endDate) {
       where.OR = [];
@@ -131,7 +148,17 @@ export async function GET(
       };
     });
 
-    return NextResponse.json({ events: formattedEvents });
+      const response = { events: formattedEvents };
+
+      // 2. 결과를 캐시에 저장 (5분 TTL)
+      await cache.set(cacheKey, response, 300);
+
+      return response;
+    });
+
+    const response = NextResponse.json(result, { status: 200 });
+    response.headers.set('X-Response-Time', `${duration.toFixed(2)}ms`);
+    return response;
   } catch (error) {
     console.error('[GET /api/teams/[teamId]/events] Error:', error);
     return NextResponse.json(
@@ -295,6 +322,10 @@ export async function POST(
       attendeeCount: event.attendees.length,
       acceptedCount: event.attendees.filter((a) => a.status === 'ACCEPTED').length,
     };
+
+    // 캐시 무효화 (새 이벤트 생성 시)
+    const cacheKey = getCacheKey('team-events', teamId, decoded.userId);
+    await cache.deletePattern(`cache:team-events:${teamId}:*`); // 모든 필터 조합 캐시 삭제
 
     return NextResponse.json({ event: formattedEvent }, { status: 201 });
   } catch (error) {
