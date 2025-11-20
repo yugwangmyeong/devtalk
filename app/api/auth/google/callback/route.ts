@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { OAuth2Client } from 'google-auth-library';
 import { prisma } from '@/lib/prisma';
 import { generateToken } from '@/lib/auth';
+import { ensureDefaultTeamChannels } from '@/lib/teamChannels';
 
 export async function GET(request: NextRequest) {
   try {
@@ -129,31 +130,11 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      // Create default "일반채널" for the team
+      // Create default channels for the team
       try {
-        const chatRoom = await prisma.chatRoom.create({
-          data: {
-            type: 'GROUP',
-            name: '일반채널',
-          },
-        });
-
-        await prisma.teamChannel.create({
-          data: {
-            name: '일반채널',
-            teamId: defaultTeam.id,
-            chatRoomId: chatRoom.id,
-          },
-        });
-
-        await prisma.chatRoomMember.create({
-          data: {
-            userId: user.id,
-            chatRoomId: chatRoom.id,
-          },
-        });
+        await ensureDefaultTeamChannels(defaultTeam.id);
       } catch (error) {
-        console.error('Error creating default channel:', error);
+        console.error('Error creating default channels:', error);
         // Continue even if channel creation fails
       }
     }

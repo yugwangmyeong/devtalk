@@ -3,48 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getTokenFromCookies, verifyToken } from '@/lib/auth';
 import { cache, getCacheKey } from '@/lib/cache';
 import { measurePerformance } from '@/lib/performance';
-
-// Helper function to create default "일반채널" for a team
-async function createDefaultChannel(teamId: string, userId: string) {
-  try {
-    console.log('[createDefaultChannel] Creating default channel for team:', teamId);
-    
-    // Create ChatRoom for the channel
-    const chatRoom = await prisma.chatRoom.create({
-      data: {
-        type: 'GROUP',
-        name: '일반채널',
-      },
-    });
-
-    console.log('[createDefaultChannel] ChatRoom created:', chatRoom.id);
-
-    // Create TeamChannel linked to the ChatRoom
-    const teamChannel = await prisma.teamChannel.create({
-      data: {
-        name: '일반채널',
-        teamId: teamId,
-        chatRoomId: chatRoom.id,
-      },
-    });
-
-    console.log('[createDefaultChannel] TeamChannel created:', teamChannel.id);
-
-    // Add team creator as member of the channel
-    await prisma.chatRoomMember.create({
-      data: {
-        userId: userId,
-        chatRoomId: chatRoom.id,
-      },
-    });
-
-    console.log('[createDefaultChannel] Channel member added');
-    return teamChannel;
-  } catch (error) {
-    console.error('[createDefaultChannel] Error creating default channel:', error);
-    throw error;
-  }
-}
+import { ensureDefaultTeamChannels } from '@/lib/teamChannels';
 
 // Get all teams for the current user
 export async function GET(request: NextRequest) {
@@ -194,11 +153,11 @@ export async function GET(request: NextRequest) {
         },
       });
 
-      // Create default "일반채널" for the team
+      // Create default channels for the team
       try {
-        await createDefaultChannel(defaultTeam.id, user.id);
+        await ensureDefaultTeamChannels(defaultTeam.id);
       } catch (error) {
-        console.error('[GET /api/teams] Failed to create default channel:', error);
+        console.error('[GET /api/teams] Failed to create default channels:', error);
         // Continue even if channel creation fails
       }
 
@@ -332,11 +291,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create default "일반채널" for the team
+    // Create default channels for the team
     try {
-      await createDefaultChannel(team.id, decoded.userId);
+      await ensureDefaultTeamChannels(team.id);
     } catch (error) {
-      console.error('[POST /api/teams] Failed to create default channel:', error);
+      console.error('[POST /api/teams] Failed to create default channels:', error);
       // Continue even if channel creation fails - team is already created
     }
 

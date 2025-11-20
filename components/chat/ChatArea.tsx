@@ -15,6 +15,12 @@ interface ChatAreaProps {
   isLoadingMessages: boolean;
   onMessageInputChange: (value: string) => void;
   onSendMessage: () => void;
+  isWorkspaceChannel?: boolean;
+  isAnnouncementChannel?: boolean;
+  canPostAnnouncements?: boolean;
+  canPromoteToAnnouncement?: boolean;
+  announcementRoomId?: string;
+  onPromoteToAnnouncement?: (message: Message) => void;
 }
 
 export function ChatArea({
@@ -25,6 +31,12 @@ export function ChatArea({
   isLoadingMessages,
   onMessageInputChange,
   onSendMessage,
+  isWorkspaceChannel = false,
+  isAnnouncementChannel = false,
+  canPostAnnouncements = false,
+  canPromoteToAnnouncement = false,
+  announcementRoomId,
+  onPromoteToAnnouncement,
 }: ChatAreaProps) {
   // Get the other user in DM (not the current user)
   const getOtherUser = () => {
@@ -55,6 +67,17 @@ export function ChatArea({
 
   console.log('[ChatArea] Rendering with room type:', room.type, 'room name:', room.name, 'isPersonalSpace:', room.isPersonalSpace);
   
+  const shouldShowPromoteAction =
+    Boolean(
+      isWorkspaceChannel &&
+      !isAnnouncementChannel &&
+      canPromoteToAnnouncement &&
+      announcementRoomId &&
+      onPromoteToAnnouncement
+    );
+
+  const isInputDisabled = isAnnouncementChannel && !canPostAnnouncements;
+
   return (
     <div className="chat-area-container">
       {/* Top Header with User Info and Search */}
@@ -95,6 +118,9 @@ export function ChatArea({
               isPersonalSpace={room.isPersonalSpace}
               roomType={room.type}
               roomName={displayName}
+              isAnnouncementChannel={isAnnouncementChannel}
+              canPromoteToAnnouncement={shouldShowPromoteAction}
+              onPromoteToAnnouncement={shouldShowPromoteAction ? onPromoteToAnnouncement : undefined}
             />
           </div>
 
@@ -118,11 +144,16 @@ export function ChatArea({
           )}
         </div>
 
+        {isAnnouncementChannel && (
+          <div className={`chat-announcement-banner ${canPostAnnouncements ? 'chat-announcement-banner-manage' : ''}`}>
+            {canPostAnnouncements ? '공지 채널입니다. 중요한 안내를 작성해보세요.' : '공지 채널은 운영진만 작성할 수 있습니다.'}
+          </div>
+        )}
         <MessageInput
           value={messageInput}
           onChange={onMessageInputChange}
           onSend={onSendMessage}
-          disabled={false}
+          disabled={isInputDisabled}
         />
       </div>
     </div>

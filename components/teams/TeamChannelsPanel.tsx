@@ -339,6 +339,12 @@ export function TeamChannelsPanel({
     return null;
   }
 
+  const sortedChannels = [...channels].sort((a, b) => {
+    if (a.type === 'ANNOUNCEMENT' && b.type !== 'ANNOUNCEMENT') return -1;
+    if (b.type === 'ANNOUNCEMENT' && a.type !== 'ANNOUNCEMENT') return 1;
+    return 0;
+  });
+
   return (
     <div className="team-channels-panel" ref={panelRef}>
       {/* Team Header */}
@@ -480,17 +486,22 @@ export function TeamChannelsPanel({
             <div className="team-channels-list" onClick={handleSectionClick}>
               {isLoadingChannels ? (
                 <div className="team-channels-loading">로딩 중...</div>
-              ) : channels.length === 0 ? (
+              ) : sortedChannels.length === 0 ? (
                 <div className="team-channels-empty">채널이 없습니다</div>
               ) : (
-                channels.map((channel) => (
+                sortedChannels.map((channel) => (
                   <div
                     key={channel.id}
                     className={`team-channels-item ${selectedChannel?.id === channel.id ? 'team-channels-item-selected' : ''}`}
                     onClick={() => handleChannelClick(channel)}
                   >
                     <span className="team-channels-item-prefix">#</span>
-                    <span className="team-channels-item-name">{channel.name}</span>
+                    <span className="team-channels-item-name">
+                      {channel.name}
+                      {channel.type === 'ANNOUNCEMENT' && (
+                        <span className="team-channels-item-badge">공지</span>
+                      )}
+                    </span>
                   </div>
                 ))
               )}

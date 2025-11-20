@@ -8,7 +8,7 @@
  *   tsx prisma/seed-performance.ts cmi2vo8pt000ati2clkey21im
  */
 
-import { PrismaClient, TeamRole, TeamMemberStatus, ChatRoomType, EventAttendeeStatus } from '@prisma/client';
+import { PrismaClient, TeamRole, TeamMemberStatus, ChatRoomType, EventAttendeeStatus, TeamChannelType } from '@prisma/client';
 import { hashPassword } from '../lib/auth';
 
 const prisma = new PrismaClient();
@@ -34,7 +34,7 @@ function randomTeamName(index: number): string {
 }
 
 function randomChannelName(index: number): string {
-  const names = ['일반', '공지사항', '자유게시판', '질문', '정보공유', '프로젝트', '회의록', '자료실'];
+  const names = ['일반', '자유게시판', '질문', '정보공유', '프로젝트', '회의록', '자료실'];
   const name = names[Math.floor(Math.random() * names.length)];
   return index === 0 ? name : `${name}-${index}`;
 }
@@ -146,6 +146,34 @@ async function seedPerformanceData(targetUserId?: string) {
 
       teams.push(team);
 
+      const defaultChannels = [
+        { name: '일반채널', type: TeamChannelType.GENERAL },
+        { name: '공지사항', type: TeamChannelType.ANNOUNCEMENT },
+      ];
+
+      for (const channelDef of defaultChannels) {
+        const defaultChatRoom = await prisma.chatRoom.create({
+          data: {
+            type: 'GROUP' as ChatRoomType,
+            name: channelDef.name,
+            members: {
+              create: selectedUsers.map(user => ({
+                userId: user.id,
+              })),
+            },
+          },
+        });
+
+        await prisma.teamChannel.create({
+          data: {
+            name: channelDef.name,
+            teamId: team.id,
+            chatRoomId: defaultChatRoom.id,
+            type: channelDef.type,
+          },
+        });
+      }
+
       // 각 팀에 채널 생성
       for (let j = 0; j < NUM_CHANNELS_PER_TEAM; j++) {
         const channelName = randomChannelName(j);
@@ -169,6 +197,7 @@ async function seedPerformanceData(targetUserId?: string) {
             name: channelName,
             teamId: team.id,
             chatRoomId: chatRoom.id,
+            type: TeamChannelType.GENERAL,
           },
         });
 

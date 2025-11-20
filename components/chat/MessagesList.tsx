@@ -11,9 +11,22 @@ interface MessagesListProps {
   isPersonalSpace?: boolean;
   roomType: string;
   roomName?: string;
+  isAnnouncementChannel?: boolean;
+  canPromoteToAnnouncement?: boolean;
+  onPromoteToAnnouncement?: (message: Message) => void;
 }
 
-export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpace, roomType, roomName }: MessagesListProps) {
+export function MessagesList({
+  messages,
+  currentUserId,
+  isLoading,
+  isPersonalSpace,
+  roomType,
+  roomName,
+  isAnnouncementChannel,
+  canPromoteToAnnouncement,
+  onPromoteToAnnouncement,
+}: MessagesListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const formatDateDivider = (dateString: string) => {
@@ -103,6 +116,12 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
           const currentMessageDate = new Date(message.createdAt);
           const shouldShowDateDivider = !previousMessage || !isSameDay(currentMessageDate, new Date(previousMessage.createdAt));
           
+          if (isAnnouncementChannel) {
+            showTime = false;
+            showAvatar = true;
+            showSenderName = true;
+          }
+          
           if (roomType === 'DM') {
             // DM: 프로필과 이름 - 1분 이내 연속 메시지면 숨김
             if (!isOwnMessage && previousMessage) {
@@ -173,11 +192,14 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
                 message={message}
                 isOwnMessage={isOwnMessage}
                 roomType={roomType}
+                isAnnouncementChannel={isAnnouncementChannel}
                 showTime={showTime}
                 showAvatar={showAvatar}
                 showSenderName={showSenderName}
                 previousMessage={previousMessage}
                 nextMessage={nextMessage}
+                canPromoteToAnnouncement={Boolean(canPromoteToAnnouncement && onPromoteToAnnouncement)}
+                onPromoteToAnnouncement={canPromoteToAnnouncement ? onPromoteToAnnouncement : undefined}
               />
             </Fragment>
           );

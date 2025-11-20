@@ -237,6 +237,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const teamChannel = await prisma.teamChannel.findUnique({
+      where: { chatRoomId: roomId },
+      select: {
+        teamId: true,
+        type: true,
+      },
+    });
+
+    let senderTeamRole: 'OWNER' | 'ADMIN' | 'MEMBER' | null = null;
+
+    if (teamChannel) {
+      const teamMember = await prisma.teamMember.findUnique({
+        where: {
+          userId_teamId: {
+            userId: decoded.userId,
+            teamId: teamChannel.teamId,
+          },
+        },
+      });
+
+      if (!teamMember || teamMember.status !== 'ACCEPTED') {
+        return NextResponse.json(
+          { error: '팀 멤버가 아닙니다.' },
+          { status: 403 }
+        );
+      }
+
+      senderTeamRole = teamMember.role;
+
+      if (teamChannel.type === 'ANNOUNCEMENT' && senderTeamRole === 'MEMBER') {
+        return NextResponse.json(
+          { error: '공지 채널에는 운영진만 메시지를 보낼 수 있습니다.' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Check if this is a personal space
     const chatRoom = await prisma.chatRoom.findUnique({
       where: { id: roomId },
@@ -349,7 +386,17 @@ export async function POST(request: NextRequest) {
       console.warn('[API] Socket.IO not available, skipping roomMessageUpdate');
     }
 
-    return NextResponse.json({ message }, { status: 201 });
+    const messageResponse = teamChannel
+      ? {
+          ...message,
+          user: {
+            ...messageUser,
+            teamRole: senderTeamRole,
+          },
+        }
+      : message;
+
+    return NextResponse.json({ message: messageResponse }, { status: 201 });
   } catch (error) {
     console.error('Create message error:', error);
     return NextResponse.json(

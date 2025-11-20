@@ -1,3 +1,210 @@
+.chat-announcement-banner {
+  margin: 0 1.5rem 0.75rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: 8px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 0.85rem;
+  border: 1px solid rgba(251, 191, 36, 0.4);
+}
+
+.chat-announcement-banner-manage {
+  background: #ecfccb;
+  color: #3f6212;
+  border-color: rgba(163, 230, 53, 0.4);
+}
+
+.chat-message-text-action-container {
+  position: relative;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.chat-message-text-actionable {
+  cursor: pointer;
+  border-radius: 12px;
+  transition: background-color 0.16s ease, box-shadow 0.16s ease;
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.chat-message-text-actionable:hover,
+.chat-message-text-actionable:focus-visible {
+  background-color: rgba(59, 130, 246, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.25);
+  outline: none;
+}
+
+.chat-message-text-actionable:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px rgba(59, 130, 246, 0.4),
+    0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+.chat-message-text-action-hint {
+  font-size: 0.72rem;
+  color: #2563eb;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity 0.16s ease;
+  white-space: nowrap;
+}
+
+.chat-message-text-actionable:hover .chat-message-text-action-hint,
+.chat-message-text-actionable:focus-visible .chat-message-text-action-hint {
+  opacity: 1;
+}
+
+.chat-message-announce-prompt {
+  position: absolute;
+  left: 0;
+  min-width: 220px;
+  max-width: 280px;
+  padding: 0.8rem 0.9rem;
+  border-radius: 12px;
+  background: #111827;
+  color: #f8fafc;
+  box-shadow:
+    0 15px 35px rgba(15, 23, 42, 0.35),
+    0 0 0 1px rgba(59, 130, 246, 0.15);
+  z-index: 15;
+  animation: chat-message-announce-pop 120ms ease-out;
+}
+
+.chat-message-announce-prompt:not(.above) {
+  top: calc(100% + 0.35rem);
+}
+
+.chat-message-announce-prompt.above {
+  bottom: calc(100% + 0.35rem);
+}
+
+.chat-message-announce-text {
+  font-size: 0.78rem;
+  line-height: 1.45;
+  margin: 0 0 0.65rem;
+  color: #e2e8f0;
+}
+
+.chat-message-announce-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.chat-message-announce-button {
+  flex: 1;
+  border: none;
+  border-radius: 999px;
+  padding: 0.4rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(148, 163, 184, 0.2);
+  color: #e2e8f0;
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+
+.chat-message-announce-button.primary {
+  background: #2563eb;
+  color: white;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+}
+
+.chat-message-announce-button:hover {
+  transform: translateY(-1px);
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.chat-message-announce-button.primary:hover {
+  background: #1d4ed8;
+}
+
+.chat-message-announcement {
+  padding: 0.35rem 0;
+}
+
+.chat-message-announcement-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.85rem;
+  width: 100%;
+  align-items: stretch;
+}
+
+.chat-message-announcement-marker {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #f97316 0%, #fb923c 100%);
+  color: white;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 10px 20px rgba(249, 115, 22, 0.35);
+}
+
+.chat-message-announcement-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 1rem 1.25rem;
+  box-shadow:
+    0 25px 50px rgba(15, 23, 42, 0.08),
+    0 0 0 1px rgba(15, 23, 42, 0.04);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chat-message-announcement-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.chat-message-announcement-author {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 700;
+  color: #0f172a;
+  font-size: 0.95rem;
+}
+
+.chat-message-announcement-author-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.chat-message-announcement-time {
+  font-size: 0.8rem;
+  color: #475569;
+  font-weight: 500;
+}
+
+.chat-message-announcement-body {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: #1e293b;
+  white-space: pre-line;
+}
+
+@keyframes chat-message-announce-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 /* Chat Page Container */
 .chat-page-container {
   display: flex;

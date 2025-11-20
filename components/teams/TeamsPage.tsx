@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useSocketStore } from '@/stores/useSocketStore';
@@ -31,6 +31,17 @@ export function TeamsPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const loadedDMUserIdRef = useRef<string | null>(null);
   const isLoadingDMRef = useRef(false);
+  const isPromotingAnnouncementRef = useRef(false);
+  const announcementChannel = useMemo(
+    () => channels.find((channel) => channel.type === 'ANNOUNCEMENT'),
+    [channels]
+  );
+  const canManageAnnouncements = selectedTeam?.role === 'OWNER' || selectedTeam?.role === 'ADMIN';
+  const isAnnouncementChannel = selectedChannel?.type === 'ANNOUNCEMENT';
+  const isWorkspaceChannel = Boolean(
+    selectedChannel && selectedRoom && selectedRoom.type === 'GROUP' && !selectedRoom.isPersonalSpace
+  );
+
 
   // TeamsPage에 진입할 때 항상 Sidebar의 채널 패널 닫기
   useEffect(() => {
@@ -463,6 +474,38 @@ export function TeamsPage() {
     }
   };
 
+  const handlePromoteToAnnouncement = useCallback(
+    async (message: Message) => {
+      if (!selectedTeam || !announcementChannel || isPromotingAnnouncementRef.current) {
+        return;
+      }
+
+      isPromotingAnnouncementRef.current = true;
+      try {
+        const response = await fetch(`/api/teams/${selectedTeam.id}/announcements`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ sourceMessageId: message.id }),
+        });
+
+        if (response.ok) {
+          alert('공지 채널에 추가되었습니다.');
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          alert(errorData.error || '공지로 보내기에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('[TeamsPage] Failed to promote announcement:', error);
+        alert('공지로 보내기에 실패했습니다.');
+      } finally {
+        isPromotingAnnouncementRef.current = false;
+      }
+    },
+    [announcementChannel, selectedTeam]
+  );
+
   // URL에서 teamId 확인
   const teamIdFromUrl = searchParams.get('teamId');
 
@@ -502,6 +545,19 @@ export function TeamsPage() {
                     isLoadingMessages={isLoadingMessages}
                     onMessageInputChange={setMessageInput}
                     onSendMessage={handleSendMessage}
+                    isWorkspaceChannel={isWorkspaceChannel}
+                    isAnnouncementChannel={isAnnouncementChannel}
+                    canPostAnnouncements={canManageAnnouncements}
+                    canPromoteToAnnouncement={
+                      Boolean(
+                        isWorkspaceChannel &&
+                          !isAnnouncementChannel &&
+                          canManageAnnouncements &&
+                          announcementChannel?.chatRoomId
+                      )
+                    }
+                    announcementRoomId={announcementChannel?.chatRoomId}
+                    onPromoteToAnnouncement={handlePromoteToAnnouncement}
                   />
                 ) : (
                   <div className="chat-empty-state">

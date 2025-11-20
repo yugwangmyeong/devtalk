@@ -129,6 +129,7 @@ model TeamChannel {
   id          String   @id @default(cuid())
   name        String
   description String?
+  type        TeamChannelType @default(GENERAL)
   teamId      String
   chatRoomId  String   @unique // One-to-one with ChatRoom for messages
   createdAt   DateTime @default(now())
@@ -140,6 +141,11 @@ model TeamChannel {
 
   @@unique([teamId, name]) // Channel name must be unique within a team
   @@map("team_channels")
+}
+
+enum TeamChannelType {
+  GENERAL
+  ANNOUNCEMENT
 }
 
 enum TeamRole {

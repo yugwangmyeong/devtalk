@@ -1,5 +1,6 @@
 'use client';
 
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Message } from './types';
 import { getProfileImageUrl } from '@/lib/utils';
 
@@ -7,14 +8,97 @@ interface MessageItemProps {
   message: Message;
   isOwnMessage: boolean;
   roomType: string;
+  isAnnouncementChannel?: boolean;
   showTime?: boolean;
   showAvatar?: boolean;
   showSenderName?: boolean;
   previousMessage?: Message | null;
   nextMessage?: Message | null;
+  canPromoteToAnnouncement?: boolean;
+  onPromoteToAnnouncement?: (message: Message) => void;
 }
 
-export function MessageItem({ message, isOwnMessage, roomType, showTime = true, showAvatar = true, showSenderName = true, previousMessage, nextMessage }: MessageItemProps) {
+export function MessageItem({
+  message,
+  isOwnMessage,
+  roomType,
+  isAnnouncementChannel = false,
+  showTime = true,
+  showAvatar = true,
+  showSenderName = true,
+  previousMessage,
+  nextMessage,
+  canPromoteToAnnouncement,
+  onPromoteToAnnouncement,
+}: MessageItemProps) {
+  const [showAnnouncementPrompt, setShowAnnouncementPrompt] = useState(false);
+  const [announcementPromptPlacement, setAnnouncementPromptPlacement] = useState<'above' | 'below'>('below');
+  const announcementPromptRef = useRef<HTMLDivElement | null>(null);
+
+  const updateAnnouncementPromptPlacement = useCallback(() => {
+    if (!announcementPromptRef.current) {
+      return;
+    }
+    const rect = announcementPromptRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const minSpace = 200;
+    if (spaceBelow < minSpace && spaceAbove > spaceBelow) {
+      setAnnouncementPromptPlacement('above');
+    } else {
+      setAnnouncementPromptPlacement('below');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!showAnnouncementPrompt) {
+      return;
+    }
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        announcementPromptRef.current &&
+        !announcementPromptRef.current.contains(event.target as Node)
+      ) {
+        setShowAnnouncementPrompt(false);
+      }
+    };
+
+    const handleResize = () => {
+      updateAnnouncementPromptPlacement();
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, [showAnnouncementPrompt, updateAnnouncementPromptPlacement]);
+
+  const handleAnnouncementPromptToggle = () => {
+    if (!canPromoteToAnnouncement || !onPromoteToAnnouncement) {
+      return;
+    }
+    setShowAnnouncementPrompt((prev) => {
+      const next = !prev;
+      if (next) {
+        requestAnimationFrame(() => {
+          updateAnnouncementPromptPlacement();
+        });
+      }
+      return next;
+    });
+  };
+
+  const handlePromoteToAnnouncement = () => {
+    if (!onPromoteToAnnouncement) {
+      return;
+    }
+    onPromoteToAnnouncement(message);
+    setShowAnnouncementPrompt(false);
+  };
   const formatTime = (dateString: string, prevMessageDate?: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -196,8 +280,49 @@ export function MessageItem({ message, isOwnMessage, roomType, showTime = true, 
 
     // chat-message-header 안에 있는 chat-message-sender 옆에 시간 표시
     // 1분 이내에 보낸 메시지이고 이름이 표시될 때 시간을 이름 옆에 표시
+    if (isAnnouncementChannel) {
+      const [headerLine, ...bodyLines] = message.content.split('\n');
+      let headerLabel = message.user.name || message.user.email;
+      if (headerLine?.startsWith('📣')) {
+        const [namePart] = headerLine.split('•');
+        if (namePart) {
+          headerLabel = namePart.replace(/^📣\s*/, '').trim();
+        }
+      }
+      const bodyText = bodyLines.join('\n').trim() || message.content;
+
+      return (
+        <div className="chat-message chat-message-announcement">
+          <div className="chat-message-announcement-grid">
+            <div className="chat-message-announcement-marker">📣</div>
+            <div className="chat-message-announcement-card">
+              <div className="chat-message-announcement-header">
+                <div className="chat-message-announcement-author">
+                  <span className="chat-message-announcement-author-name">
+                    {headerLabel}
+                  </span>
+                  {message.user.teamRole === 'ADMIN' && (
+                    <span className="chat-message-role-badge" title="관리자">
+                      ⭐
+                    </span>
+                  )}
+                </div>
+                <div className="chat-message-announcement-time">
+                  {formatTimeForChannel(message.createdAt)}
+                </div>
+              </div>
+              <div className="chat-message-announcement-body">
+                {bodyText}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     const shouldShowTimeInHeader = showSenderName && isWithinOneMinute;
-    
+    const canShowAnnouncementAction = Boolean(canPromoteToAnnouncement && onPromoteToAnnouncement);
+
     return (
       <div className="chat-message chat-message-channel">
         {showAvatar ? (
@@ -212,9 +337,9 @@ export function MessageItem({ message, isOwnMessage, roomType, showTime = true, 
             <div className="chat-message-header">
               <span className="chat-message-sender">
                 {message.user.name || message.user.email}
-                {message.user.teamRole && message.user.teamRole !== 'MEMBER' && (
-                  <span className="chat-message-role-badge" title={message.user.teamRole === 'OWNER' ? '소유자' : message.user.teamRole === 'ADMIN' ? '관리자' : ''}>
-                    {message.user.teamRole === 'OWNER' ? '👑' : message.user.teamRole === 'ADMIN' ? '⭐' : ''}
+                {(message.user.teamRole === 'OWNER' || message.user.teamRole === 'ADMIN') && (
+                  <span className="chat-message-role-badge" title={message.user.teamRole === 'OWNER' ? '소유자' : '관리자'}>
+                    {message.user.teamRole === 'OWNER' ? '👑' : '⭐'}
                   </span>
                 )}
               </span>
@@ -227,7 +352,58 @@ export function MessageItem({ message, isOwnMessage, roomType, showTime = true, 
             </div>
           )}
           <div className="chat-message-text-wrapper">
-            <div className="chat-message-text">{message.content}</div>
+            <div
+              className="chat-message-text-action-container"
+              ref={canShowAnnouncementAction ? announcementPromptRef : null}
+            >
+              <div
+                className={`chat-message-text${canShowAnnouncementAction ? ' chat-message-text-actionable' : ''}`}
+                role={canShowAnnouncementAction ? 'button' : undefined}
+                tabIndex={canShowAnnouncementAction ? 0 : undefined}
+                onClick={canShowAnnouncementAction ? handleAnnouncementPromptToggle : undefined}
+                onKeyDown={
+                  canShowAnnouncementAction
+                    ? (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault();
+                          handleAnnouncementPromptToggle();
+                        }
+                      }
+                    : undefined
+                }
+                title={canShowAnnouncementAction ? '공지로 보내기' : undefined}
+                aria-label={canShowAnnouncementAction ? '공지로 보내기' : undefined}
+              >
+                {message.content}
+              </div>
+              {canShowAnnouncementAction && showAnnouncementPrompt && (
+                <div
+                  className={`chat-message-announce-prompt${
+                    announcementPromptPlacement === 'above' ? ' above' : ''
+                  }`}
+                >
+                  <p className="chat-message-announce-text">
+                    이 메시지를 팀 공지 채널로 보낼까요?
+                  </p>
+                  <div className="chat-message-announce-actions">
+                    <button
+                      type="button"
+                      className="chat-message-announce-button primary"
+                      onClick={handlePromoteToAnnouncement}
+                    >
+                      공지로 보내기
+                    </button>
+                    <button
+                      type="button"
+                      className="chat-message-announce-button"
+                      onClick={() => setShowAnnouncementPrompt(false)}
+                    >
+                      취소
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             {/* 이름 옆에 시간이 표시되지 않을 때만 메시지 옆에 시간 표시 */}
             {showTime && !shouldShowTimeInHeader && (
               <span className="chat-message-time">
