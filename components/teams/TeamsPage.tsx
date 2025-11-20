@@ -32,6 +32,7 @@ export function TeamsPage() {
   const loadedDMUserIdRef = useRef<string | null>(null);
   const isLoadingDMRef = useRef(false);
   const isPromotingAnnouncementRef = useRef(false);
+  const isPersonalSpaceActiveRef = useRef(false);
   const announcementChannel = useMemo(
     () => channels.find((channel) => channel.type === 'ANNOUNCEMENT'),
     [channels]
@@ -122,7 +123,8 @@ export function TeamsPage() {
 
         // URL에서 channelId 읽어서 채널 선택
         const channelIdFromUrl = searchParams.get('channelId');
-        if (channelIdFromUrl) {
+        const dmUserIdFromUrl = searchParams.get('dmUserId');
+        if (channelIdFromUrl && !isPersonalSpaceActiveRef.current) {
           const channelToSelect = fetchedChannels.find((c: Channel) => c.id === channelIdFromUrl);
           if (channelToSelect) {
             setSelectedChannel(channelToSelect);
@@ -138,11 +140,13 @@ export function TeamsPage() {
             };
             console.log('[TeamsPage] Channel loaded from URL, room type:', room.type, 'channel:', channelToSelect.name);
             setSelectedRoom(room);
+            isPersonalSpaceActiveRef.current = false;
           }
-        } else {
+        } else if (!dmUserIdFromUrl && !isPersonalSpaceActiveRef.current) {
           // channelId가 없으면 선택된 채널 초기화
           setSelectedChannel(null);
           setSelectedRoom(null);
+          isPersonalSpaceActiveRef.current = false;
         }
       }
     } catch (error) {
@@ -165,9 +169,11 @@ export function TeamsPage() {
   useEffect(() => {
     const channelIdFromUrl = searchParams.get('channelId');
     const teamIdFromUrl = searchParams.get('teamId');
+    const dmUserIdFromUrl = searchParams.get('dmUserId');
+    const isPersonalSpaceActive = isPersonalSpaceActiveRef.current;
     
     // teamId와 channelId가 모두 있고, 채널 목록이 로드되었을 때만 처리
-    if (teamIdFromUrl && channelIdFromUrl && channels.length > 0 && selectedTeam) {
+    if (!isPersonalSpaceActive && teamIdFromUrl && channelIdFromUrl && channels.length > 0 && selectedTeam) {
       const channelToSelect = channels.find((c: Channel) => c.id === channelIdFromUrl);
       
       // 현재 선택된 채널과 다를 때만 업데이트
@@ -187,19 +193,22 @@ export function TeamsPage() {
         setSelectedRoom(room);
         // DM ref 초기화
         loadedDMUserIdRef.current = null;
+        isPersonalSpaceActiveRef.current = false;
       } else if (!channelToSelect && channelIdFromUrl) {
         // URL에 channelId가 있지만 채널을 찾을 수 없는 경우 초기화
         console.log('[TeamsPage] Channel not found in list, clearing selection');
         setSelectedChannel(null);
         setSelectedRoom(null);
         loadedDMUserIdRef.current = null;
+        isPersonalSpaceActiveRef.current = false;
       }
-    } else if (!channelIdFromUrl && selectedChannel) {
+    } else if (!isPersonalSpaceActive && !channelIdFromUrl && !dmUserIdFromUrl && selectedChannel) {
       // URL에 channelId가 없는데 채널이 선택되어 있으면 초기화
       console.log('[TeamsPage] No channelId in URL, clearing selection');
       setSelectedChannel(null);
       setSelectedRoom(null);
       loadedDMUserIdRef.current = null;
+      isPersonalSpaceActiveRef.current = false;
     }
   }, [searchParams, channels, selectedTeam, selectedChannel]);
 
@@ -223,6 +232,7 @@ export function TeamsPage() {
         setSelectedChannel(null);
         setSelectedRoom(personalSpaceRoom);
         loadedDMUserIdRef.current = null; // Personal space는 DM이 아니므로 ref 초기화
+        isPersonalSpaceActiveRef.current = true;
         
         // URL 업데이트하지 않음 (요구사항)
       } else {
@@ -278,6 +288,7 @@ export function TeamsPage() {
         setSelectedChannel(null);
         setSelectedRoom(dmRoom);
         loadedDMUserIdRef.current = userId;
+        isPersonalSpaceActiveRef.current = false;
         
         // Update URL to reflect DM selection
         router.replace(`/teams?teamId=${selectedTeam.id}&dmUserId=${userId}`);
@@ -299,9 +310,10 @@ export function TeamsPage() {
   useEffect(() => {
     const dmUserIdFromUrl = searchParams.get('dmUserId');
     const channelIdFromUrl = searchParams.get('channelId');
+    const isPersonalSpaceActive = isPersonalSpaceActiveRef.current;
     
     // Only load DM if URL has dmUserId and no channel is selected
-    if (dmUserIdFromUrl && selectedTeam && user && !channelIdFromUrl) {
+    if (!isPersonalSpaceActive && dmUserIdFromUrl && selectedTeam && user && !channelIdFromUrl) {
       // 이미 같은 DM이 로드되었거나 로드 중이면 스킵
       if (loadedDMUserIdRef.current === dmUserIdFromUrl || isLoadingDMRef.current) {
         return;
@@ -319,7 +331,7 @@ export function TeamsPage() {
         // 이미 로드된 경우 ref 업데이트
         loadedDMUserIdRef.current = dmUserIdFromUrl;
       }
-    } else if (!dmUserIdFromUrl) {
+    } else if (!dmUserIdFromUrl && !isPersonalSpaceActive) {
       // URL에 dmUserId가 없으면 ref 초기화
       loadedDMUserIdRef.current = null;
     }
@@ -407,6 +419,7 @@ export function TeamsPage() {
 
   // Handle channel click
   const handleChannelClick = (channel: Channel) => {
+    isPersonalSpaceActiveRef.current = false;
     setSelectedChannel(channel);
     // Channel 선택 시 DM ref 초기화
     loadedDMUserIdRef.current = null;
@@ -432,6 +445,47 @@ export function TeamsPage() {
 
     const content = messageInput.trim();
     const roomId = selectedRoom.id;
+    const isPersonalSpaceRoom = selectedRoom.isPersonalSpace;
+
+    // Personal space는 항상 HTTP API 사용
+    if (isPersonalSpaceRoom) {
+      try {
+        const response = await fetch('/api/chat/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ roomId, content }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const message: Message = {
+            ...data.message,
+            createdAt:
+              typeof data.message.createdAt === 'string'
+                ? data.message.createdAt
+                : new Date(data.message.createdAt).toISOString(),
+          };
+
+          setMessages((prev) => {
+            const exists = prev.some((m) => m.id === message.id);
+            if (exists) {
+              return prev;
+            }
+            return [...prev, message];
+          });
+          setMessageInput('');
+        } else {
+          const error = await response.json();
+          alert(error.error || '메시지 전송에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('[TeamsPage] Failed to send personal space message:', error);
+        alert('메시지 전송에 실패했습니다.');
+      }
+      return;
+    }
 
     const isSocketReady = socket && isConnected && isAuthenticated;
 
@@ -458,9 +512,10 @@ export function TeamsPage() {
         const data = await response.json();
         const message: Message = {
           ...data.message,
-          createdAt: typeof data.message.createdAt === 'string'
-            ? data.message.createdAt
-            : new Date(data.message.createdAt).toISOString(),
+          createdAt:
+            typeof data.message.createdAt === 'string'
+              ? data.message.createdAt
+              : new Date(data.message.createdAt).toISOString(),
         };
         setMessages((prev) => [...prev, message]);
         setMessageInput('');
