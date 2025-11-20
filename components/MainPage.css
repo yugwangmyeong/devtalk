@@ -13,12 +13,12 @@
 .dashboard-container {
   max-width: 1800px;
   margin: 0 auto;
-  padding: 24px 40px;
+  padding: 16px 20px;
 }
 
 .dashboard-grid {
   display: grid;
-  grid-template-columns: 1.2fr 0.8fr;
+  grid-template-columns: 1.15fr 0.9fr;
   gap: 32px;
   margin-bottom: 24px;
 }

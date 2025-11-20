@@ -58,11 +58,14 @@ export function MainPage() {
   return (
     <>
       <div className={isFriendsPanelOpen ? 'main-content-with-friends' : ''}>
-        <MainLayout headerTitle="메인화면">
+        <MainLayout headerTitle="DevTalk">
           <div className="main-page-content">
             {/* Dashboard Sections */}
             <div className="dashboard-container">
-              {/* Top Row - Two Cards */}
+              {/* Top Section - Tasks/Announcements */}
+              <TasksAnnouncementsSection />
+
+              {/* Bottom Row - Two Cards */}
               <div className="dashboard-grid">
                 <UpcomingEventsSection
                   events={dashboardData.upcomingEvents}
@@ -73,9 +76,6 @@ export function MainPage() {
                   isLoading={isLoading}
                 />
               </div>
-
-              {/* Bottom Section - Tasks/Announcements */}
-              <TasksAnnouncementsSection />
             </div>
           </div>
         </MainLayout>
