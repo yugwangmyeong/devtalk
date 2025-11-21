@@ -32,7 +32,8 @@ export function MessageItem({
   onPromoteToAnnouncement,
 }: MessageItemProps) {
   const [showAnnouncementPrompt, setShowAnnouncementPrompt] = useState(false);
-  const [announcementPromptPlacement, setAnnouncementPromptPlacement] = useState<'above' | 'below'>('below');
+  const [announcementPromptPlacement, setAnnouncementPromptPlacement] =
+    useState<'above' | 'below'>('below');
   const announcementPromptRef = useRef<HTMLDivElement | null>(null);
 
   const updateAnnouncementPromptPlacement = useCallback(() => {
@@ -115,7 +116,8 @@ export function MessageItem({
     const hours = date.getHours();
     const mins = String(date.getMinutes()).padStart(2, '0');
     const period = hours >= 12 ? '오후' : '오전';
-    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    const displayHours =
+      hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
     const timeString = `${period} ${displayHours}:${mins}`;
 
     // 날짜 변경 감지
@@ -158,7 +160,9 @@ export function MessageItem({
       } else if (isYesterday) {
         return `어제 ${timeString}`;
       } else {
-        const daysDiff = Math.floor((today.getTime() - messageDate.getTime()) / 86400000);
+        const daysDiff = Math.floor(
+          (today.getTime() - messageDate.getTime()) / 86400000
+        );
         if (daysDiff < 7) {
           return `${daysDiff}일 전 ${timeString}`;
         } else {
@@ -182,7 +186,8 @@ export function MessageItem({
     const hours = date.getHours();
     const minutes = String(date.getMinutes()).padStart(2, '0');
     const period = hours >= 12 ? '오후' : '오전';
-    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    const displayHours =
+      hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
 
     return `${year}.${month}.${day}.${period} ${displayHours}:${minutes}`;
   };
@@ -203,7 +208,8 @@ export function MessageItem({
     const hours = date.getHours();
     const mins = String(date.getMinutes()).padStart(2, '0');
     const period = hours >= 12 ? '오후' : '오전';
-    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    const displayHours =
+      hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
 
     return `${period} ${displayHours}:${mins}`;
   };
@@ -224,7 +230,8 @@ export function MessageItem({
     const hours = date.getHours();
     const mins = String(date.getMinutes()).padStart(2, '0');
     const period = hours >= 12 ? '오후' : '오전';
-    const displayHours = hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
+    const displayHours =
+      hours > 12 ? hours - 12 : hours === 0 ? 12 : hours;
     const timeString = `${period} ${displayHours}:${mins}`;
 
     // 오늘인지 확인
@@ -271,7 +278,8 @@ export function MessageItem({
       const currentTime = new Date(message.createdAt).getTime();
       const prevTime = new Date(previousMessage.createdAt).getTime();
       const timeDiff = currentTime - prevTime;
-      const isSameUserAsPrev = message.userId === previousMessage.userId ||
+      const isSameUserAsPrev =
+        message.userId === previousMessage.userId ||
         message.user.id === previousMessage.user.id;
 
       // 같은 사용자가 1분(60000ms) 이내에 보낸 메시지인지 확인
@@ -321,13 +329,33 @@ export function MessageItem({
     }
 
     const shouldShowTimeInHeader = showSenderName && isWithinOneMinute;
-    const canShowAnnouncementAction = Boolean(canPromoteToAnnouncement && onPromoteToAnnouncement);
+    const canShowAnnouncementAction = Boolean(
+      canPromoteToAnnouncement && onPromoteToAnnouncement
+    );
+
+    const messageTextClassName = `chat-message-text${
+      canShowAnnouncementAction ? ' chat-message-text-actionable' : ''
+    }`;
+
+    const handleKeyDown = (event: React.KeyboardEvent) => {
+      if (event.key === 'Enter' || event.key === ' ') {
+        event.preventDefault();
+        handleAnnouncementPromptToggle();
+      }
+    };
+
+    const announcePromptClassName = `chat-message-announce-prompt${
+      announcementPromptPlacement === 'above' ? ' above' : ''
+    }`;
 
     return (
       <div className="chat-message chat-message-channel">
         {showAvatar ? (
           <div className="chat-message-avatar">
-            <img src={getProfileImageUrl(message.user.profileImageUrl)} alt={message.user.name || message.user.email} />
+            <img
+              src={getProfileImageUrl(message.user.profileImageUrl)}
+              alt={message.user.name || message.user.email}
+            />
           </div>
         ) : (
           <div className="chat-message-avatar-spacer"></div>
@@ -337,8 +365,14 @@ export function MessageItem({
             <div className="chat-message-header">
               <span className="chat-message-sender">
                 {message.user.name || message.user.email}
-                {(message.user.teamRole === 'OWNER' || message.user.teamRole === 'ADMIN') && (
-                  <span className="chat-message-role-badge" title={message.user.teamRole === 'OWNER' ? '소유자' : '관리자'}>
+                {(message.user.teamRole === 'OWNER' ||
+                  message.user.teamRole === 'ADMIN') && (
+                  <span
+                    className="chat-message-role-badge"
+                    title={
+                      message.user.teamRole === 'OWNER' ? '소유자' : '관리자'
+                    }
+                  >
                     {message.user.teamRole === 'OWNER' ? '👑' : '⭐'}
                   </span>
                 )}
@@ -357,31 +391,26 @@ export function MessageItem({
               ref={canShowAnnouncementAction ? announcementPromptRef : null}
             >
               <div
-                className={`chat-message-text${canShowAnnouncementAction ? ' chat-message-text-actionable' : ''}`}
+                className={messageTextClassName}
                 role={canShowAnnouncementAction ? 'button' : undefined}
                 tabIndex={canShowAnnouncementAction ? 0 : undefined}
-                onClick={canShowAnnouncementAction ? handleAnnouncementPromptToggle : undefined}
-                onKeyDown={
+                onClick={
                   canShowAnnouncementAction
-                    ? (event) => {
-                        if (event.key === 'Enter' || event.key === ' ') {
-                          event.preventDefault();
-                          handleAnnouncementPromptToggle();
-                        }
-                      }
+                    ? handleAnnouncementPromptToggle
                     : undefined
                 }
+                onKeyDown={
+                  canShowAnnouncementAction ? handleKeyDown : undefined
+                }
                 title={canShowAnnouncementAction ? '공지로 보내기' : undefined}
-                aria-label={canShowAnnouncementAction ? '공지로 보내기' : undefined}
+                aria-label={
+                  canShowAnnouncementAction ? '공지로 보내기' : undefined
+                }
               >
                 {message.content}
               </div>
               {canShowAnnouncementAction && showAnnouncementPrompt && (
-                <div
-                  className={`chat-message-announce-prompt${
-                    announcementPromptPlacement === 'above' ? ' above' : ''
-                  }`}
-                >
+                <div className={announcePromptClassName}>
                   <p className="chat-message-announce-text">
                     이 메시지를 팀 공지 채널로 보낼까요?
                   </p>
@@ -417,13 +446,20 @@ export function MessageItem({
   }
 
   // DM: 기존 디자인 (본인은 오른쪽, 상대방은 왼쪽)
+  const dmMessageClassName = `chat-message ${
+    isOwnMessage ? 'chat-message-own' : ''
+  }`;
+
   return (
-    <div className={`chat-message ${isOwnMessage ? 'chat-message-own' : ''}`}>
+    <div className={dmMessageClassName}>
       {!isOwnMessage && (
         <>
           {showAvatar ? (
             <div className="chat-message-avatar">
-              <img src={getProfileImageUrl(message.user.profileImageUrl)} alt={message.user.name || message.user.email} />
+              <img
+                src={getProfileImageUrl(message.user.profileImageUrl)}
+                alt={message.user.name || message.user.email}
+              />
             </div>
           ) : (
             <div className="chat-message-avatar-spacer"></div>
