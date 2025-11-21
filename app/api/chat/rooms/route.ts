@@ -32,6 +32,8 @@ export async function GET(request: NextRequest) {
     const typeFilter = request.nextUrl.searchParams.get('type');
     // Optional: get specific room by roomId (for notifications)
     const roomIdParam = request.nextUrl.searchParams.get('roomId');
+    // Optional: find or create DM with user by email
+    const emailParam = request.nextUrl.searchParams.get('email');
     
     // If roomId is provided, fetch only that room
     if (roomIdParam) {
@@ -145,6 +147,175 @@ export async function GET(request: NextRequest) {
           : null,
         updatedAt: room.updatedAt.toISOString(),
         createdAt: room.createdAt.toISOString(),
+      };
+
+      return NextResponse.json({ rooms: [formattedRoom] }, { status: 200 });
+    }
+    
+    // If email is provided, find or create DM with that user
+    if (emailParam) {
+      // Find user by email
+      const targetUser = await prisma.user.findUnique({
+        where: { email: emailParam },
+        select: { id: true, email: true, name: true, profileImageUrl: true },
+      });
+
+      if (!targetUser) {
+        return NextResponse.json(
+          { error: '사용자를 찾을 수 없습니다.' },
+          { status: 404 }
+        );
+      }
+
+      if (targetUser.id === decoded.userId) {
+        return NextResponse.json(
+          { error: '자기 자신과의 DM은 개인 공간을 사용하세요.' },
+          { status: 400 }
+        );
+      }
+
+      // Find existing DM room between current user and target user
+      const currentUserRooms = await prisma.chatRoomMember.findMany({
+        where: { userId: decoded.userId },
+        select: { chatRoomId: true },
+      });
+
+      const targetUserRooms = await prisma.chatRoomMember.findMany({
+        where: { userId: targetUser.id },
+        select: { chatRoomId: true },
+      });
+
+      const commonRoomIds = currentUserRooms
+        .map(r => r.chatRoomId)
+        .filter(id => targetUserRooms.some(tr => tr.chatRoomId === id));
+
+      // Find DM room with exactly 2 members (current user and target user)
+      const existingDM = await prisma.chatRoom.findFirst({
+        where: {
+          id: { in: commonRoomIds },
+          type: 'DM',
+          teamChannel: null,
+        },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  profileImageUrl: true,
+                },
+              },
+            },
+          },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  profileImageUrl: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      // Check if it's a valid DM (exactly 2 members)
+      if (existingDM && existingDM.members.length === 2) {
+        const lastMessage = existingDM.messages[0];
+        const formattedRoom = {
+          id: existingDM.id,
+          type: existingDM.type,
+          name: targetUser.name || targetUser.email,
+          isPersonalSpace: false,
+          teamChannel: null,
+          members: existingDM.members.map((m) => ({
+            id: m.user.id,
+            email: m.user.email,
+            name: m.user.name,
+            profileImageUrl: m.user.profileImageUrl,
+          })),
+          lastMessage: lastMessage
+            ? {
+                id: lastMessage.id,
+                content: lastMessage.content,
+                createdAt: lastMessage.createdAt.toISOString(),
+                user: {
+                  id: lastMessage.user.id,
+                  email: lastMessage.user.email,
+                  name: lastMessage.user.name,
+                },
+              }
+            : null,
+          updatedAt: existingDM.updatedAt.toISOString(),
+          createdAt: existingDM.createdAt.toISOString(),
+        };
+
+        return NextResponse.json({ rooms: [formattedRoom] }, { status: 200 });
+      }
+
+      // Create new DM room if it doesn't exist
+      const newRoom = await prisma.chatRoom.create({
+        data: {
+          type: 'DM',
+          members: {
+            create: [
+              { userId: decoded.userId },
+              { userId: targetUser.id },
+            ],
+          },
+        },
+        include: {
+          members: {
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  profileImageUrl: true,
+                },
+              },
+            },
+          },
+          messages: {
+            take: 1,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  profileImageUrl: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const formattedRoom = {
+        id: newRoom.id,
+        type: newRoom.type,
+        name: targetUser.name || targetUser.email,
+        isPersonalSpace: false,
+        teamChannel: null,
+        members: newRoom.members.map((m) => ({
+          id: m.user.id,
+          email: m.user.email,
+          name: m.user.name,
+          profileImageUrl: m.user.profileImageUrl,
+        })),
+        lastMessage: null,
+        updatedAt: newRoom.updatedAt.toISOString(),
+        createdAt: newRoom.createdAt.toISOString(),
       };
 
       return NextResponse.json({ rooms: [formattedRoom] }, { status: 200 });

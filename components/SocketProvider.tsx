@@ -93,6 +93,7 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       teamName?: string;
       roomId?: string;
       userId?: string;
+      friendshipId?: string; // 친구 요청 ID 추가
       createdAt: string;
       read: boolean;
       user?: {
@@ -101,10 +102,18 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         name: string | null;
         profileImageUrl: string | null;
       };
+      [key: string]: unknown; // 추가 속성 허용
     }) => {
-      console.log('[SocketProvider] Received notification:', data);
+      console.log('[SocketProvider] Received notification:', {
+        ...data,
+        friendshipId: data.friendshipId,
+        hasFriendshipId: !!data.friendshipId,
+        allKeys: Object.keys(data),
+      });
       console.log('[SocketProvider] Notification type:', data.type);
       console.log('[SocketProvider] Adding notification to store...');
+      
+      // friendshipId를 명시적으로 포함하여 알림 추가
       addNotification({
         id: data.id,
         type: data.type as any,
@@ -114,16 +123,26 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         teamName: data.teamName,
         roomId: data.roomId,
         userId: data.userId,
+        friendshipId: data.friendshipId, // friendshipId 명시적으로 포함
         createdAt: data.createdAt,
         read: data.read,
         user: data.user,
       });
-      console.log('[SocketProvider] Notification added to store');
+      console.log('[SocketProvider] Notification added to store with friendshipId:', data.friendshipId);
     };
 
     // Register notification listener
     socket.on('notification', handleNotification);
-    console.log('[SocketProvider] Notification listener registered for socket:', socket.id);
+    
+    // Listen for friendsUpdated event from server
+    const handleFriendsUpdated = () => {
+      console.log('[SocketProvider] friendsUpdated event received from server');
+      // Convert Socket.IO event to window event for FriendsPanel
+      window.dispatchEvent(new CustomEvent('friendsUpdated'));
+    };
+    socket.on('friendsUpdated', handleFriendsUpdated);
+    
+    console.log('[SocketProvider] Notification and friendsUpdated listeners registered for socket:', socket.id);
     
     // Debug: Log all events to see what's being received
     const debugHandler = (eventName: string, ...args: any[]) => {
@@ -141,8 +160,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
-      console.log('[SocketProvider] Cleaning up notification listener');
+      console.log('[SocketProvider] Cleaning up notification and friendsUpdated listeners');
       socket.off('notification', handleNotification);
+      socket.off('friendsUpdated', handleFriendsUpdated);
       socket.offAny();
     };
   }, [socket, addNotification]);

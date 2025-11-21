@@ -204,7 +204,7 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
       // Check if this is a team channel and get the sender's team role
       const teamChannel = await prisma.teamChannel.findUnique({
         where: { chatRoomId: roomId },
-        select: { teamId: true },
+        select: { teamId: true, type: true },
       });
 
       let userWithRole = messageUser;
@@ -216,15 +216,23 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
               teamId: teamChannel.teamId,
             },
           },
-          select: { role: true },
+          select: { role: true, status: true },
         });
 
-        if (teamMember) {
-          userWithRole = {
-            ...messageUser,
-            teamRole: teamMember.role,
-          };
+        if (!teamMember || teamMember.status !== 'ACCEPTED') {
+          socket.emit('error', { message: '팀 멤버가 아닙니다.' });
+          return;
         }
+
+        if (teamChannel.type === 'ANNOUNCEMENT' && teamMember.role === 'MEMBER') {
+          socket.emit('error', { message: '공지 채널에는 운영진만 메시지를 보낼 수 있습니다.' });
+          return;
+        }
+
+        userWithRole = {
+          ...messageUser,
+          teamRole: teamMember.role,
+        };
       }
 
       // Update chat room's updatedAt

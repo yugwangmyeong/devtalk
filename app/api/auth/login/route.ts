@@ -27,6 +27,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if user is OAuth-only (no password)
+    if (!user.password) {
+      return NextResponse.json(
+        { error: '이 계정은 구글 로그인을 사용해주세요.' },
+        { status: 401 }
+      );
+    }
+
     // Verify password
     const isValidPassword = await verifyPassword(password, user.password);
 

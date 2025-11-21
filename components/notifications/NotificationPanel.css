@@ -22,6 +22,74 @@
   border-bottom: 1px solid #949494;
 }
 
+.notification-tabs {
+  display: flex;
+  border-bottom: 1px solid #374151;
+  background-color: #1f2937;
+}
+
+.notification-tab {
+  flex: 1;
+  padding: 0.75rem 1rem;
+  background: none;
+  border: none;
+  color: #9ca3af;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.notification-tab:hover {
+  color: white;
+  background-color: #374151;
+}
+
+.notification-tab.active {
+  color: white;
+  background-color: #2B2E34;
+  border-bottom: 2px solid #3b82f6;
+}
+
+.notification-tab-badge {
+  background-color: #3b82f6;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.125rem 0.375rem;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.notification-section {
+  margin-bottom: 1rem;
+}
+
+.notification-section:last-child {
+  margin-bottom: 0;
+}
+
+.notification-section-header {
+  padding: 0.75rem 1rem;
+  background-color: #1f2937;
+  border-bottom: 1px solid #374151;
+}
+
+.notification-section-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
 .notification-panel-title {
   margin: 0;
   font-size: 1rem;
@@ -89,6 +157,21 @@
   align-items: center;
   justify-content: center;
   color: #9ca3af;
+}
+
+.notification-item-icon .team-channels-team-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background-color: #3b82f6;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 0.875rem;
+  flex-shrink: 0;
+  overflow: hidden;
 }
 
 .notification-item-avatar {

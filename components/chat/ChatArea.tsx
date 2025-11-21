@@ -1,7 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import { MessagesList } from './MessagesList';
 import { MessageInput } from './MessageInput';
+import { MessageSearchPanel } from './MessageSearchPanel';
 import type { ChatRoom, Message } from './types';
 import type { User } from '@/stores/useAuthStore';
 
@@ -13,6 +15,12 @@ interface ChatAreaProps {
   isLoadingMessages: boolean;
   onMessageInputChange: (value: string) => void;
   onSendMessage: () => void;
+  isWorkspaceChannel?: boolean;
+  isAnnouncementChannel?: boolean;
+  canPostAnnouncements?: boolean;
+  canPromoteToAnnouncement?: boolean;
+  announcementRoomId?: string;
+  onPromoteToAnnouncement?: (message: Message) => void;
 }
 
 export function ChatArea({
@@ -23,6 +31,12 @@ export function ChatArea({
   isLoadingMessages,
   onMessageInputChange,
   onSendMessage,
+  isWorkspaceChannel = false,
+  isAnnouncementChannel = false,
+  canPostAnnouncements = false,
+  canPromoteToAnnouncement = false,
+  announcementRoomId,
+  onPromoteToAnnouncement,
 }: ChatAreaProps) {
   // Get the other user in DM (not the current user)
   const getOtherUser = () => {
@@ -49,8 +63,21 @@ export function ChatArea({
     ? otherUser.profileImageUrl
     : null;
 
+  const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false);
+
   console.log('[ChatArea] Rendering with room type:', room.type, 'room name:', room.name, 'isPersonalSpace:', room.isPersonalSpace);
   
+  const shouldShowPromoteAction =
+    Boolean(
+      isWorkspaceChannel &&
+      !isAnnouncementChannel &&
+      canPromoteToAnnouncement &&
+      announcementRoomId &&
+      onPromoteToAnnouncement
+    );
+
+  const isInputDisabled = isAnnouncementChannel && !canPostAnnouncements;
+
   return (
     <div className="chat-area-container">
       {/* Top Header with User Info and Search */}
@@ -69,35 +96,66 @@ export function ChatArea({
           )}
           <span className="chat-area-user-name">{displayName}</span>
         </div>
-        <div className="chat-area-search">
-          {/* <svg className="chat-area-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-          </svg> */}
-          <span className="chat-area-search-text">검색하기</span>
-          <svg className="chat-area-search-magnifier" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <button
+          type="button"
+          className="chat-area-search"
+          onClick={() => setIsSearchPanelOpen(true)}
+          aria-label="메시지 검색"
+        >
+          <svg className="chat-area-search-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-        </div>
+        </button>
       </div>
 
-      {/* Messages Area */}
-      <div className="chat-messages-area">
-        <MessagesList
-          messages={messages}
-          currentUserId={user?.id}
-          isLoading={isLoadingMessages}
-          isPersonalSpace={room.isPersonalSpace}
-          roomType={room.type}
+      <div className="chat-area-content">
+        <div className="chat-messages-wrapper">
+          <div className="chat-messages-area">
+            <MessagesList
+              messages={messages}
+              currentUserId={user?.id}
+              isLoading={isLoadingMessages}
+              isPersonalSpace={room.isPersonalSpace}
+              roomType={room.type}
+              roomName={displayName}
+              isAnnouncementChannel={isAnnouncementChannel}
+              canPromoteToAnnouncement={shouldShowPromoteAction}
+              onPromoteToAnnouncement={shouldShowPromoteAction ? onPromoteToAnnouncement : undefined}
+            />
+          </div>
+
+          {isSearchPanelOpen && (
+            <>
+              <div
+                className={`chat-search-backdrop ${isSearchPanelOpen ? 'visible' : ''}`}
+                onClick={() => setIsSearchPanelOpen(false)}
+              />
+              <div className="message-search-panel-overlay">
+                <MessageSearchPanel
+                  isOpen={isSearchPanelOpen}
+                  onClose={() => setIsSearchPanelOpen(false)}
+                  roomId={room.id}
+                  onMessageClick={(message) => {
+                    console.log('Message clicked:', message);
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+
+        {isAnnouncementChannel && (
+          <div className={`chat-announcement-banner ${canPostAnnouncements ? 'chat-announcement-banner-manage' : ''}`}>
+            {canPostAnnouncements ? '공지 채널입니다. 중요한 안내를 작성해보세요.' : '공지 채널은 운영진만 작성할 수 있습니다.'}
+          </div>
+        )}
+        <MessageInput
+          value={messageInput}
+          onChange={onMessageInputChange}
+          onSend={onSendMessage}
+          disabled={isInputDisabled}
         />
       </div>
-
-      {/* Message Input */}
-      <MessageInput
-        value={messageInput}
-        onChange={onMessageInputChange}
-        onSend={onSendMessage}
-        disabled={false}
-      />
     </div>
   );
 }

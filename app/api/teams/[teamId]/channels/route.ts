@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTokenFromCookies, verifyToken } from '@/lib/auth';
+import { cache, getCacheKey } from '@/lib/cache';
+import { measurePerformance } from '@/lib/performance';
+import { createTeamChannelWithMembers, ensureAnnouncementChannel } from '@/lib/teamChannels';
+import { TeamChannelType } from '@prisma/client';
 
 // Get all channels for a team
 export async function GET(
@@ -8,27 +12,39 @@ export async function GET(
   { params }: { params: Promise<{ teamId: string }> | { teamId: string } }
 ) {
   try {
-    const token = getTokenFromCookies(request.cookies);
+    const { result, duration } = await measurePerformance('team-channels-api', async () => {
+      const token = getTokenFromCookies(request.cookies);
 
-    if (!token) {
-      return NextResponse.json(
-        { error: '인증되지 않았습니다.' },
-        { status: 401 }
-      );
-    }
+      if (!token) {
+        return NextResponse.json(
+          { error: '인증되지 않았습니다.' },
+          { status: 401 }
+        );
+      }
 
-    const decoded = verifyToken(token);
+      const decoded = verifyToken(token);
 
-    if (!decoded) {
-      return NextResponse.json(
-        { error: '유효하지 않은 토큰입니다.' },
-        { status: 401 }
-      );
-    }
+      if (!decoded) {
+        return NextResponse.json(
+          { error: '유효하지 않은 토큰입니다.' },
+          { status: 401 }
+        );
+      }
 
-    // Handle params as Promise or object
-    const resolvedParams = await Promise.resolve(params);
-    const { teamId } = resolvedParams;
+      // Handle params as Promise or object
+      const resolvedParams = await Promise.resolve(params);
+      const { teamId } = resolvedParams;
+
+      const cacheKey = getCacheKey('team-channels', teamId);
+
+      // 1. 캐시에서 조회 시도
+      const cached = await cache.get(cacheKey);
+      if (cached) {
+        console.log(`[Team Channels API] Cache hit for team ${teamId}`);
+        return cached;
+      }
+
+      console.log(`[Team Channels API] Cache miss for team ${teamId}`);
 
     // Check if user is an ACCEPTED member of the team
     const teamMember = await prisma.teamMember.findUnique({
@@ -46,6 +62,9 @@ export async function GET(
         { status: 403 }
       );
     }
+
+    // Ensure announcement channel exists for legacy teams
+    await ensureAnnouncementChannel(teamId);
 
     // Get all TeamChannels for this team
     // Only include chatRoom if it's type GROUP (channels only, exclude DM rooms)
@@ -101,40 +120,51 @@ export async function GET(
       },
     });
 
-    const formattedChannels = teamChannels.map((teamChannel) => {
-      const chatRoom = teamChannel.chatRoom;
-      return {
-        id: teamChannel.id,
-        name: teamChannel.name,
-        description: teamChannel.description,
-        teamId: teamChannel.teamId,
-        chatRoomId: teamChannel.chatRoomId,
-        memberCount: chatRoom._count.members,
-        messageCount: chatRoom._count.messages,
-        members: chatRoom.members.map((m) => ({
-          id: m.user.id,
-          email: m.user.email,
-          name: m.user.name,
-          profileImageUrl: m.user.profileImageUrl,
-        })),
-        lastMessage: chatRoom.messages[0]
-          ? {
-              id: chatRoom.messages[0].id,
-              content: chatRoom.messages[0].content,
-              createdAt: chatRoom.messages[0].createdAt.toISOString(),
-              user: {
-                id: chatRoom.messages[0].user.id,
-                email: chatRoom.messages[0].user.email,
-                name: chatRoom.messages[0].user.name,
-              },
-            }
-          : null,
-        createdAt: teamChannel.createdAt.toISOString(),
-        updatedAt: teamChannel.updatedAt.toISOString(),
-      };
+      const formattedChannels = teamChannels.map((teamChannel) => {
+        const chatRoom = teamChannel.chatRoom;
+        return {
+          id: teamChannel.id,
+          name: teamChannel.name,
+          description: teamChannel.description,
+          teamId: teamChannel.teamId,
+          chatRoomId: teamChannel.chatRoomId,
+          type: teamChannel.type,
+          memberCount: chatRoom._count.members,
+          messageCount: chatRoom._count.messages,
+          members: chatRoom.members.map((m) => ({
+            id: m.user.id,
+            email: m.user.email,
+            name: m.user.name,
+            profileImageUrl: m.user.profileImageUrl,
+          })),
+          lastMessage: chatRoom.messages[0]
+            ? {
+                id: chatRoom.messages[0].id,
+                content: chatRoom.messages[0].content,
+                createdAt: chatRoom.messages[0].createdAt.toISOString(),
+                user: {
+                  id: chatRoom.messages[0].user.id,
+                  email: chatRoom.messages[0].user.email,
+                  name: chatRoom.messages[0].user.name,
+                },
+              }
+            : null,
+          createdAt: teamChannel.createdAt.toISOString(),
+          updatedAt: teamChannel.updatedAt.toISOString(),
+        };
+      });
+
+      const response = { channels: formattedChannels };
+
+      // 2. 결과를 캐시에 저장 (3분 TTL - 채널은 자주 변경될 수 있음)
+      await cache.set(cacheKey, response, 180);
+
+      return response;
     });
 
-    return NextResponse.json({ channels: formattedChannels });
+    const response = NextResponse.json(result, { status: 200 });
+    response.headers.set('X-Response-Time', `${duration.toFixed(2)}ms`);
+    return response;
   } catch (error) {
     console.error('[GET /api/teams/[teamId]/channels] Error:', error);
     return NextResponse.json(
@@ -220,38 +250,15 @@ export async function POST(
       );
     }
 
-    // Get all ACCEPTED team members to add them to the new channel
-    // PENDING invitations are not added until they accept
-    const teamMembers = await prisma.teamMember.findMany({
-      where: { 
-        teamId: teamId,
-        status: 'ACCEPTED', // 수락된 멤버만 채널에 추가
-      },
-      select: { userId: true },
+    // Create new GENERAL channel for the team and add members automatically
+    const { teamChannel } = await createTeamChannelWithMembers({
+      teamId,
+      name: name.trim(),
+      type: TeamChannelType.GENERAL,
     });
 
-    const teamMemberIds = teamMembers.map(tm => tm.userId);
-
-    // Create new channel (TeamChannel with ChatRoom) for the team
-    // Add all team members to the channel automatically
-    const chatRoom = await prisma.chatRoom.create({
-      data: {
-        type: 'GROUP',
-        name: name.trim(),
-        members: {
-          create: teamMemberIds.map(userId => ({
-            userId: userId,
-          })),
-        },
-      },
-    });
-
-    const teamChannel = await prisma.teamChannel.create({
-      data: {
-        name: name.trim(),
-        teamId: teamId,
-        chatRoomId: chatRoom.id,
-      },
+    const createdChannel = await prisma.teamChannel.findUnique({
+      where: { id: teamChannel.id },
       include: {
         chatRoom: {
           include: {
@@ -294,37 +301,46 @@ export async function POST(
       },
     });
 
-    const channel = teamChannel.chatRoom;
+    if (!createdChannel) {
+      throw new Error('채널 정보를 찾을 수 없습니다.');
+    }
+
+    const channelRoom = createdChannel.chatRoom;
 
     const formattedChannel = {
-      id: teamChannel.id,
-      name: teamChannel.name,
-      description: teamChannel.description,
-      teamId: teamChannel.teamId,
-      chatRoomId: teamChannel.chatRoomId,
-      memberCount: channel._count.members,
-      messageCount: channel._count.messages,
-      members: channel.members.map((m) => ({
+      id: createdChannel.id,
+      name: createdChannel.name,
+      description: createdChannel.description,
+      type: createdChannel.type,
+      teamId: createdChannel.teamId,
+      chatRoomId: createdChannel.chatRoomId,
+      memberCount: channelRoom._count.members,
+      messageCount: channelRoom._count.messages,
+      members: channelRoom.members.map((m) => ({
         id: m.user.id,
         email: m.user.email,
         name: m.user.name,
         profileImageUrl: m.user.profileImageUrl,
       })),
-      lastMessage: channel.messages[0]
+      lastMessage: channelRoom.messages[0]
         ? {
-            id: channel.messages[0].id,
-            content: channel.messages[0].content,
-            createdAt: channel.messages[0].createdAt.toISOString(),
+            id: channelRoom.messages[0].id,
+            content: channelRoom.messages[0].content,
+            createdAt: channelRoom.messages[0].createdAt.toISOString(),
             user: {
-              id: channel.messages[0].user.id,
-              email: channel.messages[0].user.email,
-              name: channel.messages[0].user.name,
+              id: channelRoom.messages[0].user.id,
+              email: channelRoom.messages[0].user.email,
+              name: channelRoom.messages[0].user.name,
             },
           }
         : null,
-      createdAt: teamChannel.createdAt.toISOString(),
-      updatedAt: teamChannel.updatedAt.toISOString(),
+      createdAt: createdChannel.createdAt.toISOString(),
+      updatedAt: createdChannel.updatedAt.toISOString(),
     };
+
+    // 캐시 무효화 (새 채널 생성 시)
+    const cacheKey = getCacheKey('team-channels', teamId);
+    await cache.delete(cacheKey);
 
     return NextResponse.json({ channel: formattedChannel }, { status: 201 });
   } catch (error) {

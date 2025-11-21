@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import type { ChatRoom } from './types';
+import { getProfileImageUrl } from '@/lib/utils';
 
 interface PersonalSpaceItemProps {
   selectedRoom: ChatRoom | null;
@@ -46,7 +47,7 @@ export function PersonalSpaceItem({ selectedRoom, onSelect, rooms }: PersonalSpa
 
   // DB에서 가져온 사용자 정보 사용 (없으면 fallback으로 useAuthStore 사용)
   const displayName = roomUser?.name || roomUser?.email || user?.name || user?.email || '사용자';
-  const profileImageUrl = roomUser?.profileImageUrl || user?.profileImageUrl;
+  const profileImageUrl = getProfileImageUrl(roomUser?.profileImageUrl || user?.profileImageUrl);
 
   const handleClick = async () => {
     try {
@@ -71,11 +72,7 @@ export function PersonalSpaceItem({ selectedRoom, onSelect, rooms }: PersonalSpa
       onClick={handleClick}
     >
       <div className="chat-avatar">
-        {profileImageUrl ? (
-          <img src={profileImageUrl} alt={displayName} />
-        ) : (
-          <div className="chat-avatar-placeholder"></div>
-        )}
+        <img src={profileImageUrl} alt={displayName} />
       </div>
       <div className="chat-dm-item-content">
         <div className="chat-dm-item-name">

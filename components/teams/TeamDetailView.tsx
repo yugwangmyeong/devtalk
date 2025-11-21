@@ -11,6 +11,7 @@ export interface Channel {
   id: string; // TeamChannel.id
   name: string;
   description?: string | null;
+  type: 'GENERAL' | 'ANNOUNCEMENT';
   teamId: string;
   chatRoomId: string; // ChatRoom.id for messages
   memberCount: number;

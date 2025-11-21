@@ -184,7 +184,7 @@ export function LoginPage() {
         {/* Left Side - Logo */}
         <div className="logo-container">
           <Image
-            src="/devtalk-logo.png?v=2"
+            src="/devtalk-logo.svg"
             alt="DevTALK Logo"
             width={128}
             height={128}
@@ -218,7 +218,12 @@ export function LoginPage() {
                 </button>
 
                 {/* Google Sign In Button */}
-                <button className="login-button google-button">
+                <button 
+                  className="login-button google-button"
+                  onClick={() => {
+                    window.location.href = '/api/auth/google';
+                  }}
+                >
                   <svg
                     className="google-icon"
                     viewBox="0 0 24 24"

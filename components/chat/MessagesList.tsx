@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, Fragment } from 'react';
 import { MessageItem } from './MessageItem';
 import type { Message } from './types';
 
@@ -10,11 +10,35 @@ interface MessagesListProps {
   isLoading: boolean;
   isPersonalSpace?: boolean;
   roomType: string;
+  roomName?: string;
+  isAnnouncementChannel?: boolean;
+  canPromoteToAnnouncement?: boolean;
+  onPromoteToAnnouncement?: (message: Message) => void;
 }
 
-export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpace, roomType }: MessagesListProps) {
+export function MessagesList({
+  messages,
+  currentUserId,
+  isLoading,
+  isPersonalSpace,
+  roomType,
+  roomName,
+  isAnnouncementChannel,
+  canPromoteToAnnouncement,
+  onPromoteToAnnouncement,
+}: MessagesListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const formatDateDivider = (dateString: string) => {
+    return new Intl.DateTimeFormat('ko-KR', { dateStyle: 'long' }).format(new Date(dateString));
+  };
+  const isSameDay = (dateA: Date, dateB: Date) => {
+    return (
+      dateA.getFullYear() === dateB.getFullYear() &&
+      dateA.getMonth() === dateB.getMonth() &&
+      dateA.getDate() === dateB.getDate()
+    );
+  };
   
   console.log('[MessagesList] Rendering with roomType:', roomType, 'isPersonalSpace:', isPersonalSpace, 'messages count:', messages.length);
 
@@ -43,7 +67,25 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
     <div className="chat-messages-list" ref={messagesContainerRef}>
       {messages.length === 0 ? (
         <div className="chat-empty-messages">
-          메시지가 없습니다. 첫 메시지를 보내보세요!
+          {isPersonalSpace ? (
+            <div className="chat-empty-messages-content">
+              <div className="chat-empty-messages-icon">💭</div>
+              <div className="chat-empty-messages-title">나만의 공간</div>
+              <div className="chat-empty-messages-text">메모나 생각을 기록해보세요</div>
+            </div>
+          ) : roomType === 'DM' ? (
+            <div className="chat-empty-messages-content">
+              <div className="chat-empty-messages-icon">💬</div>
+              <div className="chat-empty-messages-title">대화를 시작해보세요</div>
+              <div className="chat-empty-messages-text">{roomName ? `${roomName}님과 대화를 시작해보세요` : '첫 메시지를 보내보세요'}</div>
+            </div>
+          ) : (
+            <div className="chat-empty-messages-content">
+              <div className="chat-empty-messages-icon">📢</div>
+              <div className="chat-empty-messages-title">채널에 메시지를 보내보세요</div>
+              <div className="chat-empty-messages-text">첫 메시지를 작성해보세요</div>
+            </div>
+          )}
         </div>
       ) : (
         // 중복 제거: 같은 ID를 가진 메시지가 여러 개 있으면 하나만 렌더링
@@ -71,6 +113,14 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
           
           const previousMessage = index > 0 ? uniqueMessages[index - 1] : null;
           const nextMessage = uniqueMessages[index + 1];
+          const currentMessageDate = new Date(message.createdAt);
+          const shouldShowDateDivider = !previousMessage || !isSameDay(currentMessageDate, new Date(previousMessage.createdAt));
+          
+          if (isAnnouncementChannel) {
+            showTime = false;
+            showAvatar = true;
+            showSenderName = true;
+          }
           
           if (roomType === 'DM') {
             // DM: 프로필과 이름 - 1분 이내 연속 메시지면 숨김
@@ -132,17 +182,26 @@ export function MessagesList({ messages, currentUserId, isLoading, isPersonalSpa
           }
           
           return (
-            <MessageItem
-              key={message.id}
-              message={message}
-              isOwnMessage={isOwnMessage}
-              roomType={roomType}
-              showTime={showTime}
-              showAvatar={showAvatar}
-              showSenderName={showSenderName}
-              previousMessage={previousMessage}
-              nextMessage={nextMessage}
-            />
+            <Fragment key={message.id}>
+              {shouldShowDateDivider && (
+                <div className="chat-date-divider">
+                  <span>{formatDateDivider(message.createdAt)}</span>
+                </div>
+              )}
+              <MessageItem
+                message={message}
+                isOwnMessage={isOwnMessage}
+                roomType={roomType}
+                isAnnouncementChannel={isAnnouncementChannel}
+                showTime={showTime}
+                showAvatar={showAvatar}
+                showSenderName={showSenderName}
+                previousMessage={previousMessage}
+                nextMessage={nextMessage}
+                canPromoteToAnnouncement={Boolean(canPromoteToAnnouncement && onPromoteToAnnouncement)}
+                onPromoteToAnnouncement={canPromoteToAnnouncement ? onPromoteToAnnouncement : undefined}
+              />
+            </Fragment>
           );
         });
         })()

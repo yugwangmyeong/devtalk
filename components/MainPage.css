@@ -1,0 +1,31 @@
+.friends-panel-sidebar-attached {
+  position: fixed;
+  left: 80px;
+  top: 0;
+  z-index: 998;
+  height: 100vh;
+}
+
+.main-content-with-friends .main-content {
+  margin-left: 350px;
+}
+
+.dashboard-container {
+  max-width: 1800px;
+  margin: 0 auto;
+  padding: 16px 20px;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.9fr;
+  gap: 32px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

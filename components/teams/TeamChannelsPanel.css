@@ -406,6 +406,10 @@
   height: 100%;
   border-radius: 50%;
   background-color: #4b5563;
+  background-image: url('/default-avatar.svg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
 }
 
 .team-channels-dm-name {
@@ -562,10 +566,12 @@
 
 .team-invite-search {
   margin-bottom: 1rem;
+  display: flex;
+  gap: 0.5rem;
 }
 
 .team-invite-search-input {
-  width: 100%;
+  flex: 1;
   padding: 0.75rem;
   background-color: #1f2937;
   border: 1px solid #374151;
@@ -574,6 +580,31 @@
   font-size: 0.875rem;
   transition: border-color 0.2s;
   box-sizing: border-box;
+}
+
+.team-invite-search-button {
+  padding: 0.75rem 1.5rem;
+  background-color: #3b82f6;
+  border: 1px solid #3b82f6;
+  border-radius: 6px;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+  white-space: nowrap;
+}
+
+.team-invite-search-button:hover:not(:disabled) {
+  background-color: #2563eb;
+  border-color: #2563eb;
+}
+
+.team-invite-search-button:disabled {
+  background-color: #4b5563;
+  border-color: #4b5563;
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .team-invite-search-input:focus {
@@ -680,5 +711,17 @@
   color: #9ca3af;
   font-size: 0.75rem;
   flex-shrink: 0;
+}
+
+.team-channels-item-badge {
+  margin-left: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(251, 191, 36, 0.2);
+  color: rgb(245, 158, 11);
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 

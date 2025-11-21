@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
     // Get roomId from query params first for logging
     const { searchParams } = new URL(request.url);
     const roomId = searchParams.get('roomId');
-    
+
     console.log('[API] GET /api/chat/messages called:', {
       roomId,
       url: request.url,
@@ -124,11 +124,11 @@ export async function GET(request: NextRequest) {
       take: limit,
     });
 
-    console.log('[API] Messages found:', {
-      count: messages.length,
-      messageIds: messages.map(m => m.id),
-      userIds: messages.map(m => m.userId),
-    });
+    // console.log('[API] Messages found:', {
+    //   count: messages.length,
+    //   messageIds: messages.map(m => m.id),
+    //   userIds: messages.map(m => m.userId),
+    // });
 
     // Reverse to get chronological order
     messages.reverse();
@@ -237,14 +237,51 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const teamChannel = await prisma.teamChannel.findUnique({
+      where: { chatRoomId: roomId },
+      select: {
+        teamId: true,
+        type: true,
+      },
+    });
+
+    let senderTeamRole: 'OWNER' | 'ADMIN' | 'MEMBER' | null = null;
+
+    if (teamChannel) {
+      const teamMember = await prisma.teamMember.findUnique({
+        where: {
+          userId_teamId: {
+            userId: decoded.userId,
+            teamId: teamChannel.teamId,
+          },
+        },
+      });
+
+      if (!teamMember || teamMember.status !== 'ACCEPTED') {
+        return NextResponse.json(
+          { error: '팀 멤버가 아닙니다.' },
+          { status: 403 }
+        );
+      }
+
+      senderTeamRole = teamMember.role;
+
+      if (teamChannel.type === 'ANNOUNCEMENT' && senderTeamRole === 'MEMBER') {
+        return NextResponse.json(
+          { error: '공지 채널에는 운영진만 메시지를 보낼 수 있습니다.' },
+          { status: 403 }
+        );
+      }
+    }
+
     // Check if this is a personal space
     const chatRoom = await prisma.chatRoom.findUnique({
       where: { id: roomId },
       include: { members: true },
     });
-    
+
     const isPersonalSpace = chatRoom?.type === 'DM' && chatRoom?.members.length === 1;
-    
+
     console.log('[API] Creating message:', {
       roomId,
       userId: decoded.userId,
@@ -349,7 +386,17 @@ export async function POST(request: NextRequest) {
       console.warn('[API] Socket.IO not available, skipping roomMessageUpdate');
     }
 
-    return NextResponse.json({ message }, { status: 201 });
+    const messageResponse = teamChannel
+      ? {
+          ...message,
+          user: {
+            ...messageUser,
+            teamRole: senderTeamRole,
+          },
+        }
+      : message;
+
+    return NextResponse.json({ message: messageResponse }, { status: 201 });
   } catch (error) {
     console.error('Create message error:', error);
     return NextResponse.json(

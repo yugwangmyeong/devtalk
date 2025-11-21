@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword, generateToken } from '@/lib/auth';
+import { ensureDefaultTeamChannels } from '@/lib/teamChannels';
 
 export async function POST(request: NextRequest) {
   try {
@@ -73,38 +74,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create default "일반채널" for the team
+    // Create default channels for the team
     try {
-      console.log('[Signup] Creating default channel for team:', defaultTeam.id);
-      const chatRoom = await prisma.chatRoom.create({
-        data: {
-          type: 'GROUP',
-          name: '일반채널',
-        },
-      });
-
-      console.log('[Signup] ChatRoom created:', chatRoom.id);
-
-      await prisma.teamChannel.create({
-        data: {
-          name: '일반채널',
-          teamId: defaultTeam.id,
-          chatRoomId: chatRoom.id,
-        },
-      });
-
-      console.log('[Signup] TeamChannel created');
-
-      await prisma.chatRoomMember.create({
-        data: {
-          userId: user.id,
-          chatRoomId: chatRoom.id,
-        },
-      });
-
-      console.log('[Signup] Channel member added');
+      await ensureDefaultTeamChannels(defaultTeam.id);
     } catch (error) {
-      console.error('[Signup] Failed to create default channel:', error);
+      console.error('[Signup] Failed to create default channels:', error);
       // Continue even if channel creation fails - user and team are already created
     }
 
