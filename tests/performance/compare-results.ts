@@ -61,3 +61,4 @@ console.log('2. 랜덤 데이터 생성: npm run db:seed:performance');
 console.log('3. 데이터 생성 후 다시 테스트');
 console.log('4. 프로덕션 환경에서는 큰 효과 예상\n');
 
+
