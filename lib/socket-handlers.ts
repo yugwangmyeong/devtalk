@@ -207,7 +207,7 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
         select: { teamId: true, type: true },
       });
 
-      let userWithRole = messageUser;
+      let userWithRole: typeof messageUser & { teamRole?: string } = messageUser;
       if (teamChannel) {
         const teamMember = await prisma.teamMember.findUnique({
           where: {
