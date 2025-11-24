@@ -12,11 +12,18 @@ declare global {
 let globalIO: SocketIOServer | null = null;
 
 export function initializeSocket(server: HTTPServer | HTTPSServer) {
+  const allowedOrigins = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.NEXT_PUBLIC_SOCKET_URL,
+    'http://localhost:3000',
+    'http://15.165.117.114:3000',
+  ].filter(Boolean);
+
   const io = new SocketIOServer(server, {
     path: '/api/socket',
     addTrailingSlash: false,
     cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      origin: allowedOrigins.length > 0 ? allowedOrigins : true, // 모든 origin 허용 (개발용)
       methods: ['GET', 'POST'],
       credentials: true,
     },

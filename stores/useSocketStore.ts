@@ -25,9 +25,15 @@ export const useSocketStore = create<SocketState>((set, get) => ({
     }
 
     console.log('[Socket Store] Creating new socket connection...');
-    const socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:3000', {
+    // 클라이언트에서는 현재 페이지의 origin을 사용
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 
+                      process.env.NEXT_PUBLIC_APP_URL || 
+                      (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000');
+    console.log('[Socket Store] Connecting to:', socketUrl);
+    const socket = io(socketUrl, {
       path: '/api/socket',
       transports: ['websocket', 'polling'],
+      withCredentials: true,
     });
 
     socket.on('connect', () => {
