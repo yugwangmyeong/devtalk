@@ -635,7 +635,30 @@ export async function POST(request: NextRequest) {
     }
 
     // Format room response (same format as GET)
-    const formatRoom = (room: any) => {
+    const formatRoom = (room: any): {
+      id: string;
+      type: string;
+      name: string;
+      isPersonalSpace: boolean;
+      members: Array<{
+        id: string;
+        email: string;
+        name: string | null;
+        profileImageUrl: string | null;
+      }>;
+      lastMessage: {
+        id: string;
+        content: string;
+        createdAt: string;
+        user: {
+          id: string;
+          email: string;
+          name: string | null;
+        };
+      } | null;
+      updatedAt: string;
+      createdAt: string;
+    } => {
       const otherMembers = room.members
         .filter((m: any) => m.userId !== decoded.userId)
         .map((m: any) => m.user);
