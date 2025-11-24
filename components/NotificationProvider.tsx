@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useSocketStore } from '@/stores/useSocketStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useNotificationStore } from '@/stores/useNotificationStore';
 
-export function NotificationProvider({ children }: { children: React.ReactNode }) {
+function NotificationProviderContent({ children }: { children: React.ReactNode }) {
   const { socket, isConnected, isAuthenticated } = useSocketStore();
   const { user } = useAuthStore();
   const { addNotification } = useNotificationStore();
@@ -431,4 +431,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [socket]);
 
   return <>{children}</>;
+}
+
+export function NotificationProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<>{children}</>}>
+      <NotificationProviderContent>{children}</NotificationProviderContent>
+    </Suspense>
+  );
 }

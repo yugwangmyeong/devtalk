@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { LoginPage } from '@/components/Auth/LoginPage';
 import { MainPage } from '@/components/MainPage';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
-export default function Home() {
+function HomeContent() {
   const { isAuthenticated, isLoading, checkAuth } = useAuthStore();
   const searchParams = useSearchParams();
 
@@ -31,4 +31,12 @@ export default function Home() {
   }
 
   return isAuthenticated ? <MainPage /> : <LoginPage />;
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={<LoadingSpinner size="large" message="DevTalk에 접속하는 중..." fullScreen />}>
+      <HomeContent />
+    </Suspense>
+  );
 }
