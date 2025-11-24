@@ -373,15 +373,41 @@ export async function POST(request: NextRequest) {
       });
 
       // Send roomMessageUpdate to all room members (except sender)
+      console.log('[API] Checking connected sockets:', {
+        totalSockets: io.sockets.sockets.size,
+        memberUserIds,
+        senderUserId: decoded.userId,
+      });
+      
+      let sentCount = 0;
       io.sockets.sockets.forEach((connectedSocket) => {
         const socketUserId = (connectedSocket as any).userId;
+        console.log('[API] Checking socket:', {
+          socketId: connectedSocket.id,
+          socketUserId,
+          hasUserId: !!socketUserId,
+          isMember: socketUserId && memberUserIds.includes(socketUserId),
+          isSender: socketUserId === decoded.userId,
+        });
+        
         if (socketUserId && memberUserIds.includes(socketUserId)) {
           if (socketUserId !== decoded.userId) {
             console.log(`[API] Sending roomMessageUpdate to user ${socketUserId} (socket ${connectedSocket.id})`);
             connectedSocket.emit('roomMessageUpdate', roomMessageUpdate);
+            sentCount++;
+          } else {
+            console.log(`[API] Skipping sender ${socketUserId}`);
+          }
+        } else {
+          if (socketUserId) {
+            console.log(`[API] Socket ${connectedSocket.id} user ${socketUserId} is not a member of this room`);
+          } else {
+            console.log(`[API] Socket ${connectedSocket.id} has no userId (not authenticated)`);
           }
         }
       });
+      
+      console.log(`[API] Sent roomMessageUpdate to ${sentCount} users`);
     } else {
       console.warn('[API] Socket.IO not available, skipping roomMessageUpdate');
     }
