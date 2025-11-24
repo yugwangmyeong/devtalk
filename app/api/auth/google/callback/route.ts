@@ -152,7 +152,7 @@ export async function GET(request: NextRequest) {
     // Set auth token cookie
     response.cookies.set('auth-token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // HTTP 환경에서는 false로 설정
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
