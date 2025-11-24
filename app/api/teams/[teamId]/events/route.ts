@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getTokenFromCookies, verifyToken } from '@/lib/auth';
 import { cache, getCacheKey } from '@/lib/cache';
 import { measurePerformance } from '@/lib/performance';
+import { Prisma } from '@prisma/client';
 
 // Get all events for a team
 export async function GET(
@@ -248,7 +249,7 @@ export async function POST(
     }
 
     // Create event with optional attendees
-    const attendeeData = Array.isArray(attendeeIds) && attendeeIds.length > 0
+    const attendeeData: Prisma.EventAttendeeUncheckedCreateWithoutEventInput[] = Array.isArray(attendeeIds) && attendeeIds.length > 0
       ? attendeeIds.map((userId: string) => ({
           userId,
           status: userId === decoded.userId ? 'ACCEPTED' : 'PENDING', // Creator auto-accepts
