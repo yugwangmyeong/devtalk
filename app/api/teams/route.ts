@@ -161,11 +161,52 @@ export async function GET(request: NextRequest) {
         // Continue even if channel creation fails
       }
 
+      // Fetch the TeamMember record with the same structure as the query above
+      const defaultTeamMember = await prisma.teamMember.findUnique({
+        where: {
+          userId_teamId: {
+            userId: user.id,
+            teamId: defaultTeam.id,
+          },
+        },
+        include: {
+          team: {
+            include: {
+              creator: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  profileImageUrl: true,
+                },
+              },
+              members: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      email: true,
+                      name: true,
+                      profileImageUrl: true,
+                    },
+                  },
+                },
+              },
+              _count: {
+                select: {
+                  members: true,
+                  chatRooms: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
       // Add the default team to teamMembers array
-      teamMembers = [{
-        role: 'OWNER' as const,
-        team: defaultTeam,
-      }];
+      if (defaultTeamMember) {
+        teamMembers = [defaultTeamMember];
+      }
     }
 
       const teams = teamMembers.map((tm) => ({
