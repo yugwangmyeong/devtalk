@@ -204,9 +204,10 @@ export async function GET(request: NextRequest) {
       });
 
       // Add the default team to teamMembers array
-      if (defaultTeamMember) {
-        teamMembers = [defaultTeamMember];
+      if (!defaultTeamMember) {
+        throw new Error('Failed to create default team member');
       }
+      teamMembers = [defaultTeamMember];
     }
 
       const teams = teamMembers.map((tm) => ({
