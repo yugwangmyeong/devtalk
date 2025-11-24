@@ -12,12 +12,12 @@ declare global {
 let globalIO: SocketIOServer | null = null;
 
 export function initializeSocket(server: HTTPServer | HTTPSServer) {
-  const allowedOrigins = [
+  const allowedOrigins: string[] = [
     process.env.NEXT_PUBLIC_APP_URL,
     process.env.NEXT_PUBLIC_SOCKET_URL,
     'http://localhost:3000',
     'http://15.165.117.114:3000',
-  ].filter(Boolean);
+  ].filter((origin): origin is string => typeof origin === 'string' && origin.length > 0);
 
   const io = new SocketIOServer(server, {
     path: '/api/socket',
