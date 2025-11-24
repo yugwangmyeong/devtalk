@@ -46,7 +46,7 @@ interface EventCardProps {
 }
 
 export function EventCard({ event, teamId, onStatusChange }: EventCardProps) {
-  const { user } = useAuthStore;
+  const { user } = useAuthStore();
   const [isUpdating, setIsUpdating] = useState(false);
   const [currentStatus, setCurrentStatus] = useState(event.myStatus);
 
