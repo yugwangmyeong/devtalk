@@ -64,12 +64,23 @@ export async function verifyToken(token: string): Promise<{ userId: string; emai
     // 먼저 블랙리스트 확인
     const isBlacklisted = await isTokenBlacklisted(token);
     if (isBlacklisted) {
+      console.log('[Auth] Token is blacklisted');
       return null;
     }
 
     const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
     return decoded;
   } catch (error) {
+    // JWT 검증 실패 원인 로깅
+    if (error instanceof jwt.JsonWebTokenError) {
+      console.error('[Auth] JWT verification error:', error.name, error.message);
+    } else if (error instanceof jwt.TokenExpiredError) {
+      console.error('[Auth] Token expired:', error.expiredAt);
+    } else if (error instanceof jwt.NotBeforeError) {
+      console.error('[Auth] Token not active yet:', error.date);
+    } else {
+      console.error('[Auth] Token verification error:', error);
+    }
     return null;
   }
 }

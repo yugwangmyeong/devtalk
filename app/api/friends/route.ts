@@ -297,16 +297,26 @@ export async function POST(request: NextRequest) {
       console.log('[API /api/friends] friendshipId type:', typeof notificationPayload.friendshipId);
       console.log('[API /api/friends] hasFriendshipId:', !!notificationPayload.friendshipId);
       
-      // Socket.IO로 알림 전송
-      io.to(userId).emit('notification', notificationPayload);
-      
-      // Check if user is in the room
+      // Check if user is in the room before sending
       const userRoom = io.sockets.adapter.rooms.get(userId);
-      console.log('[API /api/friends] User room check:', {
+      const isUserOnline = !!userRoom && userRoom.size > 0;
+      
+      console.log('[API /api/friends] User room check before sending:', {
         userId,
         roomExists: !!userRoom,
         socketsInRoom: userRoom ? Array.from(userRoom) : [],
+        isUserOnline,
       });
+      
+      if (isUserOnline) {
+        // Socket.IO로 알림 전송
+        io.to(userId).emit('notification', notificationPayload);
+        console.log('[API /api/friends] Notification sent via Socket.IO to user:', userId);
+      } else {
+        console.warn('[API /api/friends] User is not online, notification will not be delivered via Socket.IO');
+        console.warn('[API /api/friends] User should reconnect Socket or refresh page to receive notifications');
+        // TODO: 나중에 DB에 알림을 저장하고 사용자가 접속하면 조회하도록 구현할 수 있음
+      }
     } else {
       console.error('[API /api/friends] Socket.IO instance not available');
     }

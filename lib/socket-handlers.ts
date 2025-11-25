@@ -14,20 +14,36 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
   // Authenticate socket connection
   socket.on('authenticate', async (data: { token: string }) => {
     console.log('[Socket] authenticate received for socket:', socket.id);
+    console.log('[Socket] Token received:', data.token ? `${data.token.substring(0, 20)}...` : 'null');
+    
+    if (!data.token) {
+      console.error('[Socket] Authentication failed: No token provided');
+      socket.emit('authenticated', { success: false, error: 'No token provided' });
+      return;
+    }
+
     try {
       const decoded = await verifyToken(data.token);
+      console.log('[Socket] Token verification result:', decoded ? `Valid for user ${decoded.userId}` : 'Invalid');
+      
       if (decoded) {
         socket.userId = decoded.userId;
         // Join user's personal room for notifications
         socket.join(decoded.userId);
+        
+        // Verify join was successful
+        const userRoom = io.sockets.adapter.rooms.get(decoded.userId);
+        console.log(`[Socket] User ${decoded.userId} joined room, room exists: ${!!userRoom}, sockets in room: ${userRoom ? userRoom.size : 0}`);
+        
         socket.emit('authenticated', { success: true });
         console.log(`[Socket] Socket ${socket.id} authenticated as user ${decoded.userId} and joined user room`);
       } else {
-        console.error('[Socket] Authentication failed: Invalid token');
+        console.error('[Socket] Authentication failed: Invalid token - verifyToken returned null');
         socket.emit('authenticated', { success: false, error: 'Invalid token' });
       }
     } catch (error) {
       console.error('[Socket] Authentication error:', error);
+      console.error('[Socket] Authentication error details:', error instanceof Error ? error.message : String(error));
       socket.emit('authenticated', { success: false, error: 'Authentication failed' });
     }
   });
