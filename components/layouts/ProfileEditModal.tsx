@@ -69,12 +69,12 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       reader.readAsDataURL(file);
 
       // 파일 업로드
-      const formData = new FormData();
-      formData.append('file', file);
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
 
       const response = await fetch('/api/upload/image', {
         method: 'POST',
-        body: formData,
+        body: uploadFormData,
       });
 
       const data = await response.json();
@@ -85,6 +85,11 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
       // 업로드된 URL을 폼에 설정
       const imageUrl = data.url;
+      
+      // 현재 formData의 name 값을 가져오기 (state 직접 참조)
+      const currentName = formData.name;
+      
+      // formData 업데이트
       setFormData((prev) => ({
         ...prev,
         profileImageUrl: imageUrl,
@@ -98,7 +103,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            name: formData.name.trim() || null,
+            name: currentName.trim() || null,
             profileImageUrl: imageUrl.trim() || null,
           }),
         });
