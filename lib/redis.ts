@@ -34,7 +34,7 @@ export function getRedisClient(): Redis | null {
       return delay;
     },
     maxRetriesPerRequest: null, // 자동 재시도 비활성화
-    enableOfflineQueue: false, // 오프라인 큐 비활성화
+    enableOfflineQueue: true, // 오프라인 큐 활성화 (연결 전 명령 대기)
     lazyConnect: true, // 지연 연결
   });
 
@@ -63,6 +63,57 @@ export function getRedisClient(): Redis | null {
   });
 
   return redis;
+}
+
+/**
+ * Redis 연결 상태 확인
+ */
+export function isRedisReady(redisClient: Redis | null): boolean {
+  if (!redisClient) {
+    return false;
+  }
+  
+  // Redis 상태 확인: 'ready' 또는 'connect' 상태면 사용 가능
+  const status = redisClient.status;
+  return status === 'ready' || status === 'connect';
+}
+
+/**
+ * Redis 명령 실행 (연결 상태 확인 후 실행)
+ */
+export async function safeRedisOperation<T>(
+  operation: (redis: Redis) => Promise<T>,
+  fallback: T
+): Promise<T> {
+  const redis = getRedisClient();
+  if (!redis) {
+    return fallback;
+  }
+
+  // 연결 상태 확인
+  if (!isRedisReady(redis)) {
+    // 연결 중이면 잠시 대기 후 재시도
+    if (redis.status === 'connecting' || redis.status === 'reconnecting') {
+      // 최대 1초 대기
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (!isRedisReady(redis)) {
+        return fallback;
+      }
+    } else {
+      return fallback;
+    }
+  }
+
+  try {
+    return await operation(redis);
+  } catch (error) {
+    // 연결 관련 에러는 조용히 처리
+    if (error instanceof Error && error.message.includes('Stream isn\'t writeable')) {
+      return fallback;
+    }
+    console.error('Redis operation error:', error);
+    return fallback;
+  }
 }
 
 export async function closeRedisConnection() {

@@ -4,7 +4,7 @@
  * 대시보드 데이터와 같은 자주 조회되는 데이터를 캐싱
  */
 
-import { getRedisClient } from './redis';
+import { getRedisClient, isRedisReady } from './redis';
 
 export class Cache {
   private defaultTTL: number = 300; // 기본 5분
@@ -25,10 +25,31 @@ export class Cache {
       return; // Redis가 없으면 캐싱하지 않음
     }
 
-    const serialized = JSON.stringify(value);
-    await redis.setex(key, ttl, serialized);
-    
-    console.log(`[Cache] Set: ${key} (TTL: ${ttl}s)`);
+    try {
+      // 연결 상태 확인
+      if (!isRedisReady(redis)) {
+        // 연결 중이면 잠시 대기
+        if (redis.status === 'connecting' || redis.status === 'reconnecting') {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          if (!isRedisReady(redis)) {
+            return; // 연결 실패 시 조용히 실패
+          }
+        } else {
+          return; // 연결되지 않음
+        }
+      }
+
+      const serialized = JSON.stringify(value);
+      await redis.setex(key, ttl, serialized);
+      
+      console.log(`[Cache] Set: ${key} (TTL: ${ttl}s)`);
+    } catch (error) {
+      // 연결 관련 에러는 조용히 처리
+      if (error instanceof Error && error.message.includes('Stream isn\'t writeable')) {
+        return;
+      }
+      console.error(`[Cache] Set error for key ${key}:`, error);
+    }
   }
 
   /**
@@ -42,6 +63,19 @@ export class Cache {
     }
 
     try {
+      // 연결 상태 확인
+      if (!isRedisReady(redis)) {
+        // 연결 중이면 잠시 대기
+        if (redis.status === 'connecting' || redis.status === 'reconnecting') {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          if (!isRedisReady(redis)) {
+            return null; // 연결 실패 시 null 반환
+          }
+        } else {
+          return null; // 연결되지 않음
+        }
+      }
+
       const result = await redis.get(key);
       
       if (!result) {
@@ -58,6 +92,10 @@ export class Cache {
         return null;
       }
     } catch (error) {
+      // 연결 관련 에러는 조용히 처리
+      if (error instanceof Error && error.message.includes('Stream isn\'t writeable')) {
+        return null;
+      }
       console.error(`[Cache] Get error for key ${key}:`, error);
       return null;
     }
