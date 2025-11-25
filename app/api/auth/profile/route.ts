@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded) {
       return NextResponse.json(
@@ -64,7 +64,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded) {
       return NextResponse.json(

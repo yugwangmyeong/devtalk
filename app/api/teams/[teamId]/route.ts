@@ -20,7 +20,7 @@ export async function GET(
         );
       }
 
-      const decoded = verifyToken(token);
+      const decoded = await verifyToken(token);
 
       if (!decoded) {
         return NextResponse.json(
@@ -157,7 +157,7 @@ export async function PATCH(
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded) {
       return NextResponse.json(
@@ -310,7 +310,7 @@ export async function DELETE(
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded) {
       return NextResponse.json(

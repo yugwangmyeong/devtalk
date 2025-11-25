@@ -21,7 +21,7 @@ export async function GET(
         );
       }
 
-      const decoded = verifyToken(token);
+      const decoded = await verifyToken(token);
 
       if (!decoded) {
         return NextResponse.json(
@@ -184,7 +184,7 @@ export async function POST(
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded) {
       return NextResponse.json(
