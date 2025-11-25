@@ -33,6 +33,8 @@ model User {
   eventAttendees EventAttendee[]
   sentFriendRequests     Friendship[] @relation("FriendRequester")
   receivedFriendRequests Friendship[] @relation("FriendAddressee")
+  notifications          Notification[] @relation("NotificationRecipient")
+  sentNotifications      Notification[] @relation("NotificationSender")
 
   @@map("users")
 }
@@ -236,4 +238,38 @@ enum FriendshipStatus {
   ACCEPTED  // 친구 수락됨
   DECLINED  // 친구 요청 거절됨
   BLOCKED   // 차단됨
+}
+
+// Notification model for storing user notifications
+model Notification {
+  id          String            @id @default(cuid())
+  userId      String            // User who receives the notification
+  type        NotificationType
+  title       String
+  message     String
+  read        Boolean           @default(false)
+  teamId      String?          // Optional: for team-related notifications
+  teamName    String?           // Optional: team name
+  friendshipId String?          // Optional: for friend request notifications
+  roomId      String?           // Optional: for chat-related notifications
+  roomName    String?           // Optional: room/channel name
+  channelId   String?           // Optional: for team channel notifications
+  senderId    String?           // Optional: user who sent the notification
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  user        User              @relation("NotificationRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  sender      User?             @relation("NotificationSender", fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([userId, read, createdAt])
+  @@index([userId, type])
+  @@map("notifications")
+}
+
+enum NotificationType {
+  FRIEND_REQUEST  // 친구 요청
+  TEAM_INVITE     // 팀 초대
+  MESSAGE         // 메시지 알림
+  TEAM_MESSAGE    // 팀 채널 메시지
 }

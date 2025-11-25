@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, Suspense } from 'react';
+import { useEffect, useRef, useState, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useSocketStore } from '@/stores/useSocketStore';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -12,6 +12,7 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
   const { addNotification } = useNotificationStore();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [hasLoadedNotifications, setHasLoadedNotifications] = useState(false);
 
   // 현재 보고 있는 방 ID를 추적하기 위한 ref
   // 리스너 내부에서 사용하므로 ref로 관리하여 리스너 재등록 방지
@@ -25,6 +26,38 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
       currentRoomIdRef.current = null;
     }
   }, [pathname, searchParams]);
+
+  // Load saved notifications from database when user is authenticated
+  useEffect(() => {
+    if (!user || hasLoadedNotifications) {
+      return;
+    }
+
+    const loadNotifications = async () => {
+      try {
+        console.log('[NotificationProvider] Loading saved notifications from database...');
+        const response = await fetch('/api/notifications?unreadOnly=false&limit=50');
+        if (response.ok) {
+          const data = await response.json();
+          const notifications = data.notifications || [];
+          console.log('[NotificationProvider] Loaded notifications from DB:', notifications.length);
+          
+          // Add all notifications to store
+          notifications.forEach((notification: any) => {
+            addNotification(notification);
+          });
+          
+          setHasLoadedNotifications(true);
+        } else {
+          console.error('[NotificationProvider] Failed to load notifications:', response.status);
+        }
+      } catch (error) {
+        console.error('[NotificationProvider] Error loading notifications:', error);
+      }
+    };
+
+    loadNotifications();
+  }, [user, hasLoadedNotifications, addNotification]);
 
   // 전역 알림 리스너 설정 (한 번만 등록)
   useEffect(() => {

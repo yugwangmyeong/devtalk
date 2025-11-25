@@ -264,44 +264,39 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Send notification to the addressee via socket
-    const io = getIO();
-    console.log('[API /api/friends] Sending friend request notification:', {
-      io: !!io,
-      userId,
-      friendshipId: friendship.id,
-      requesterName: friendship.requester.name || friendship.requester.email,
-    });
-    
-    if (io) {
-      // friendshipId를 명시적으로 포함한 알림 데이터 생성
-      const notificationPayload = {
-        id: `friend-request-${friendship.id}`,
-        type: 'friend_request',
+    // Save notification to database (항상 저장)
+    const notification = await prisma.notification.create({
+      data: {
+        userId: userId,
+        type: 'FRIEND_REQUEST',
         title: '친구 요청',
         message: `${friendship.requester.name || friendship.requester.email}님이 친구 요청을 보냈습니다.`,
-        friendshipId: friendship.id, // 명시적으로 friendshipId 포함 (가장 중요!)
-        createdAt: friendship.createdAt.toISOString(),
+        friendshipId: friendship.id,
+        senderId: friendship.requester.id,
         read: false,
-        user: {
-          id: friendship.requester.id,
-          email: friendship.requester.email,
-          name: friendship.requester.name,
-          profileImageUrl: friendship.requester.profileImageUrl,
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            profileImageUrl: true,
+          },
         },
-      };
-      
-      console.log('[API /api/friends] Emitting notification to user:', userId);
-      console.log('[API /api/friends] Notification payload:', JSON.stringify(notificationPayload, null, 2));
-      console.log('[API /api/friends] friendshipId:', notificationPayload.friendshipId);
-      console.log('[API /api/friends] friendshipId type:', typeof notificationPayload.friendshipId);
-      console.log('[API /api/friends] hasFriendshipId:', !!notificationPayload.friendshipId);
-      
+      },
+    });
+
+    console.log('[API /api/friends] Notification saved to database:', notification.id);
+
+    // Send notification to the addressee via socket (if online)
+    const io = getIO();
+    if (io) {
       // Check if user is in the room before sending
       const userRoom = io.sockets.adapter.rooms.get(userId);
       const isUserOnline = !!userRoom && userRoom.size > 0;
       
-      console.log('[API /api/friends] User room check before sending:', {
+      console.log('[API /api/friends] User room check:', {
         userId,
         roomExists: !!userRoom,
         socketsInRoom: userRoom ? Array.from(userRoom) : [],
@@ -309,16 +304,30 @@ export async function POST(request: NextRequest) {
       });
       
       if (isUserOnline) {
-        // Socket.IO로 알림 전송
+        // Socket.IO로 실시간 알림 전송
+        const notificationPayload = {
+          id: notification.id,
+          type: 'friend_request',
+          title: notification.title,
+          message: notification.message,
+          friendshipId: notification.friendshipId,
+          createdAt: notification.createdAt.toISOString(),
+          read: notification.read,
+          user: {
+            id: notification.sender.id,
+            email: notification.sender.email,
+            name: notification.sender.name,
+            profileImageUrl: notification.sender.profileImageUrl,
+          },
+        };
+        
         io.to(userId).emit('notification', notificationPayload);
-        console.log('[API /api/friends] Notification sent via Socket.IO to user:', userId);
+        console.log('[API /api/friends] Real-time notification sent via Socket.IO to user:', userId);
       } else {
-        console.warn('[API /api/friends] User is not online, notification will not be delivered via Socket.IO');
-        console.warn('[API /api/friends] User should reconnect Socket or refresh page to receive notifications');
-        // TODO: 나중에 DB에 알림을 저장하고 사용자가 접속하면 조회하도록 구현할 수 있음
+        console.log('[API /api/friends] User is not online, notification saved to DB (will be retrieved on next login)');
       }
     } else {
-      console.error('[API /api/friends] Socket.IO instance not available');
+      console.warn('[API /api/friends] Socket.IO instance not available, notification saved to DB only');
     }
 
     return NextResponse.json(
