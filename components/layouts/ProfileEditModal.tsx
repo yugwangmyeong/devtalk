@@ -121,6 +121,11 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
 
       // Update auth store with new user data
       setUser(data.user);
+      
+      // 페이지 새로고침을 트리거하여 모든 컴포넌트가 새로운 이미지를 사용하도록 함
+      // 또는 전역 이벤트를 발생시켜 다른 컴포넌트에 알림
+      window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { user: data.user } }));
+      
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : '오류가 발생했습니다.');

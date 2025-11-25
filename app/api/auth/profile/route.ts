@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTokenFromCookies, verifyToken } from '@/lib/auth';
+import { cache } from '@/lib/cache';
 
 // Get user profile
 export async function GET(request: NextRequest) {
@@ -90,6 +91,14 @@ export async function PATCH(request: NextRequest) {
         createdAt: true,
       },
     });
+
+    // 캐시 무효화: 사용자 정보가 포함된 모든 캐시 삭제
+    // 팀 목록 캐시 삭제 (사용자 정보 포함)
+    await cache.deletePattern(`cache:teams:${decoded.userId}*`);
+    // 채팅방 목록 캐시 삭제 (사용자 정보 포함)
+    await cache.deletePattern(`cache:chat-rooms:${decoded.userId}*`);
+    // 대시보드 캐시 삭제 (사용자 정보 포함)
+    await cache.deletePattern(`cache:dashboard:${decoded.userId}*`);
 
     return NextResponse.json(
       { message: '회원정보가 수정되었습니다.', user },
