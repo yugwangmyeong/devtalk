@@ -303,7 +303,7 @@ export async function POST(request: NextRequest) {
         isUserOnline,
       });
       
-      if (isUserOnline) {
+      if (isUserOnline && notification.sender) {
         // Socket.IO로 실시간 알림 전송
         const notificationPayload = {
           id: notification.id,
