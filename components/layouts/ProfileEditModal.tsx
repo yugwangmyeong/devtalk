@@ -84,10 +84,41 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       }
 
       // 업로드된 URL을 폼에 설정
+      const imageUrl = data.url;
       setFormData((prev) => ({
         ...prev,
-        profileImageUrl: data.url,
+        profileImageUrl: imageUrl,
       }));
+
+      // 즉시 프로필 업데이트 (이미지만 먼저 반영)
+      try {
+        const updateResponse = await fetch('/api/auth/profile', {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            name: formData.name.trim() || null,
+            profileImageUrl: imageUrl.trim() || null,
+          }),
+        });
+
+        const updateData = await updateResponse.json();
+
+        if (updateResponse.ok) {
+          // Update auth store with new user data
+          setUser(updateData.user);
+          
+          // 전역 이벤트 발생하여 다른 컴포넌트에 알림
+          window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { user: updateData.user } }));
+        } else {
+          console.error('프로필 업데이트 실패:', updateData.error);
+          // 이미지 업로드는 성공했으므로 에러를 표시하지 않음
+        }
+      } catch (updateErr) {
+        console.error('프로필 업데이트 중 오류:', updateErr);
+        // 이미지 업로드는 성공했으므로 에러를 표시하지 않음
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '이미지 업로드 중 오류가 발생했습니다.');
       setPreviewUrl(null);
@@ -102,6 +133,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
     setError(null);
 
     try {
+      // 이름만 업데이트 (이미지는 이미 업로드 시 반영됨)
       const response = await fetch('/api/auth/profile', {
         method: 'PATCH',
         headers: {
@@ -122,8 +154,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
       // Update auth store with new user data
       setUser(data.user);
       
-      // 페이지 새로고침을 트리거하여 모든 컴포넌트가 새로운 이미지를 사용하도록 함
-      // 또는 전역 이벤트를 발생시켜 다른 컴포넌트에 알림
+      // 전역 이벤트 발생하여 다른 컴포넌트에 알림
       window.dispatchEvent(new CustomEvent('profileUpdated', { detail: { user: data.user } }));
       
       onClose();
