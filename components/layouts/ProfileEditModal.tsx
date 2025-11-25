@@ -111,7 +111,7 @@ export function ProfileEditModal({ isOpen, onClose }: ProfileEditModalProps) {
         const updateData = await updateResponse.json();
 
         if (updateResponse.ok) {
-          // Update auth store with new user data
+          // Update auth store with new user data (타임스탬프는 getProfileImageUrl에서 처리)
           setUser(updateData.user);
           
           // 전역 이벤트 발생하여 다른 컴포넌트에 알림

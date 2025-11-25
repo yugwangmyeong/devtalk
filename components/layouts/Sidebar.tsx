@@ -28,10 +28,27 @@ export function Sidebar() {
   } = useTeamViewStore();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [imageKey, setImageKey] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
 
   // 프로필 이미지 URL 확인 및 정규화 (기본 이미지 포함)
-  const profileImageUrl = getProfileImageUrl(user?.profileImageUrl);
+  // 강제 새로고침을 위해 타임스탬프 추가
+  const profileImageUrl = getProfileImageUrl(user?.profileImageUrl, true);
+
+  // 프로필 업데이트 이벤트 리스너
+  useEffect(() => {
+    const handleProfileUpdate = (event: CustomEvent) => {
+      console.log('[Sidebar] Profile updated event received:', event.detail);
+      // 이미지 강제 새로고침을 위해 key 변경
+      setImageKey(prev => prev + 1);
+    };
+
+    window.addEventListener('profileUpdated', handleProfileUpdate as EventListener);
+
+    return () => {
+      window.removeEventListener('profileUpdated', handleProfileUpdate as EventListener);
+    };
+  }, []);
 
   // 디버깅: 프로필 이미지 URL 확인
   useEffect(() => {
@@ -154,10 +171,17 @@ export function Sidebar() {
               onClick={() => setIsMenuOpen(!isMenuOpen)}
             >
               <img
-                key={profileImageUrl}
+                key={`${profileImageUrl}-${imageKey}`}
                 src={profileImageUrl}
                 alt={user?.name || user?.email || 'Profile'}
                 className="main-bottom-button-image"
+                onError={(e) => {
+                  // 이미지 로드 실패 시 강제 새로고침
+                  const target = e.target as HTMLImageElement;
+                  const currentSrc = target.src;
+                  const separator = currentSrc.includes('?') ? '&' : '?';
+                  target.src = `${currentSrc.split('?')[0]}${separator}t=${Date.now()}`;
+                }}
               />
             </button>
             {isMenuOpen && (
