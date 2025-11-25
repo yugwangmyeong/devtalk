@@ -309,6 +309,7 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
       };
       [key: string]: unknown; // 추가 속성 허용
     }) => {
+      console.log('[NotificationProvider] ========== NOTIFICATION RECEIVED ==========');
       console.log('[NotificationProvider] Notification received:', {
         id: data.id,
         type: data.type,
@@ -320,8 +321,9 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
         user: data.user,
         // 전체 데이터 확인
         allKeys: Object.keys(data),
-        rawData: data,
+        rawData: JSON.stringify(data, null, 2),
       });
+      console.log('[NotificationProvider] ===========================================');
 
       // Handle team_invite and friend_request notifications
       if (data.type === 'team_invite') {
