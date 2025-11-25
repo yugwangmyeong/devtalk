@@ -15,7 +15,7 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
   socket.on('authenticate', async (data: { token: string }) => {
     console.log('[Socket] authenticate received for socket:', socket.id);
     try {
-      const decoded = verifyToken(data.token);
+      const decoded = await verifyToken(data.token);
       if (decoded) {
         socket.userId = decoded.userId;
         // Join user's personal room for notifications
