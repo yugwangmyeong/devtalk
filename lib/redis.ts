@@ -87,6 +87,7 @@ export async function safeRedisOperation<T>(
 ): Promise<T> {
   const redis = getRedisClient();
   if (!redis) {
+    // Redis가 없으면 fallback 반환 (블랙리스트 확인 불가 = 토큰 허용)
     return fallback;
   }
 
@@ -97,9 +98,11 @@ export async function safeRedisOperation<T>(
       // 최대 1초 대기
       await new Promise(resolve => setTimeout(resolve, 100));
       if (!isRedisReady(redis)) {
+        // 연결 실패 시 fallback 반환 (블랙리스트 확인 불가 = 토큰 허용)
         return fallback;
       }
     } else {
+      // 연결되지 않음 - fallback 반환 (블랙리스트 확인 불가 = 토큰 허용)
       return fallback;
     }
   }
@@ -107,11 +110,16 @@ export async function safeRedisOperation<T>(
   try {
     return await operation(redis);
   } catch (error) {
-    // 연결 관련 에러는 조용히 처리
-    if (error instanceof Error && error.message.includes('Stream isn\'t writeable')) {
+    // 연결 관련 에러는 조용히 처리하고 fallback 반환
+    if (error instanceof Error) {
+      if (error.message.includes('Stream isn\'t writeable')) {
+        return fallback;
+      }
+      // Redis 연결 에러도 fallback 반환 (블랙리스트 확인 불가 = 토큰 허용)
+      console.warn('[Redis] Operation error, using fallback:', error.message);
       return fallback;
     }
-    console.error('Redis operation error:', error);
+    console.error('[Redis] Unknown error:', error);
     return fallback;
   }
 }

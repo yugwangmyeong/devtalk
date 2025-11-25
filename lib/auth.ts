@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { getRedisClient, safeRedisOperation } from './redis';
+import { getRedisClient, safeRedisOperation, isRedisReady } from './redis';
 
 const JWT_SECRET: string = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 const JWT_EXPIRES_IN: string = process.env.JWT_EXPIRES_IN || '7d';
@@ -46,13 +46,37 @@ export async function addTokenToBlacklist(token: string): Promise<void> {
 
 // Check if token is blacklisted
 export async function isTokenBlacklisted(token: string): Promise<boolean> {
+  // Redis가 없으면 블랙리스트 확인 불가 (토큰 허용)
+  const redis = getRedisClient();
+  if (!redis) {
+    console.log('[Auth] Redis not available, skipping blacklist check (token allowed)');
+    return false; // Redis가 없으면 블랙리스트 확인 불가 = 토큰 허용
+  }
+
+  // Redis 연결 상태 확인
+  if (!isRedisReady(redis)) {
+    console.log('[Auth] Redis not ready, skipping blacklist check (token allowed)');
+    return false; // Redis가 준비되지 않았으면 블랙리스트 확인 불가 = 토큰 허용
+  }
+
   // 안전한 Redis 작업으로 블랙리스트 확인
   const result = await safeRedisOperation(
     async (redis) => {
-      const value = await redis.get(`blacklist:${token}`);
-      return value !== null;
+      try {
+        const value = await redis.get(`blacklist:${token}`);
+        const isBlacklisted = value !== null;
+        if (isBlacklisted) {
+          console.log('[Auth] Token found in blacklist (Redis confirmed)');
+        } else {
+          console.log('[Auth] Token not in blacklist');
+        }
+        return isBlacklisted;
+      } catch (error) {
+        console.error('[Auth] Error checking blacklist:', error);
+        return false; // 에러 발생 시 false 반환 (토큰 사용 허용)
+      }
     },
-    false // Redis가 없거나 에러 발생 시 false 반환 (토큰 사용 허용)
+    false // Redis 연결 실패 시 false 반환 (토큰 사용 허용)
   );
 
   return result;
@@ -61,26 +85,34 @@ export async function isTokenBlacklisted(token: string): Promise<boolean> {
 // Verify JWT token
 export async function verifyToken(token: string): Promise<{ userId: string; email: string } | null> {
   try {
-    // 먼저 블랙리스트 확인
-    const isBlacklisted = await isTokenBlacklisted(token);
-    if (isBlacklisted) {
-      console.log('[Auth] Token is blacklisted');
+    // 먼저 JWT 자체가 유효한지 확인 (블랙리스트 확인 전에)
+    let decoded: { userId: string; email: string };
+    try {
+      decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+    } catch (jwtError) {
+      // JWT 자체가 유효하지 않으면 블랙리스트 확인 불필요
+      if (jwtError instanceof jwt.JsonWebTokenError) {
+        console.error('[Auth] JWT verification error:', jwtError.name, jwtError.message);
+      } else if (jwtError instanceof jwt.TokenExpiredError) {
+        console.error('[Auth] Token expired:', jwtError.expiredAt);
+      } else if (jwtError instanceof jwt.NotBeforeError) {
+        console.error('[Auth] Token not active yet:', jwtError.date);
+      } else {
+        console.error('[Auth] Token verification error:', jwtError);
+      }
       return null;
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
+    // JWT가 유효하면 블랙리스트 확인
+    const isBlacklisted = await isTokenBlacklisted(token);
+    if (isBlacklisted) {
+      console.log('[Auth] Token is blacklisted (valid JWT but blacklisted)');
+      return null;
+    }
+
     return decoded;
   } catch (error) {
-    // JWT 검증 실패 원인 로깅
-    if (error instanceof jwt.JsonWebTokenError) {
-      console.error('[Auth] JWT verification error:', error.name, error.message);
-    } else if (error instanceof jwt.TokenExpiredError) {
-      console.error('[Auth] Token expired:', error.expiredAt);
-    } else if (error instanceof jwt.NotBeforeError) {
-      console.error('[Auth] Token not active yet:', error.date);
-    } else {
-      console.error('[Auth] Token verification error:', error);
-    }
+    console.error('[Auth] Unexpected error in verifyToken:', error);
     return null;
   }
 }
