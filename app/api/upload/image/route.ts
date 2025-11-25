@@ -83,13 +83,16 @@ async function saveToLocal(file: File): Promise<string> {
   const filePath = join(uploadDir, fileName);
   await writeFile(filePath, buffer);
 
-  // public 폴더 기준이면 상대 경로, 아니면 절대 URL
-  if (uploadDir.includes('public')) {
-    return `/uploads/profiles/${fileName}`;
-  } else {
-    // EC2에서 별도 디렉토리 사용 시 정적 파일 서빙 필요
-    return `/api/uploads/profiles/${fileName}`;
+  // 파일이 실제로 저장되었는지 확인 (동기화 대기)
+  let retries = 0;
+  while (!existsSync(filePath) && retries < 10) {
+    await new Promise(resolve => setTimeout(resolve, 50));
+    retries++;
   }
+
+  // 항상 API를 통해 파일 서빙 (개발/프로덕션 모두에서 안정적)
+  // Next.js 개발 서버는 public 폴더의 런타임 추가 파일을 즉시 인식하지 못할 수 있음
+  return `/api/uploads/profiles/${fileName}`;
 }
 
 // AWS S3에 업로드하는 함수 (선택사항)
