@@ -1,0 +1,89 @@
+name: Deploy to EC2 (Simple)
+
+# 간단한 배포 워크플로우 - 빌드 없이 EC2에서 직접 빌드
+# 장점: 빠르고, EC2에 모든 의존성 설치됨
+# 단점: EC2에서 빌드 시간 소요
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+
+      - name: Add EC2 to known hosts
+        run: |
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy and build on EC2
+        run: |
+          ssh ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'ENDSSH'
+            set -e
+            
+            echo "🚀 Starting deployment..."
+            
+            DEPLOY_DIR="$HOME/devtalk"
+            REPO_DIR="$DEPLOY_DIR/repo"
+            
+            # 디렉토리 생성
+            mkdir -p $REPO_DIR
+            cd $REPO_DIR
+            
+            # Git 저장소 클론 또는 업데이트
+            if [ -d .git ]; then
+              echo "📥 Pulling latest changes..."
+              git fetch origin
+              git reset --hard origin/main || git reset --hard origin/master
+              git clean -fd
+            else
+              echo "📥 Cloning repository..."
+              git clone https://github.com/${{ github.repository }}.git .
+            fi
+            
+            # devtalk 디렉토리로 이동
+            cd devtalk
+            
+            # 의존성 설치
+            echo "📦 Installing dependencies..."
+            npm ci --production=false
+            
+            # Prisma Client 생성
+            echo "🔄 Generating Prisma Client..."
+            npm run db:generate || echo "⚠️ Prisma generate skipped"
+            
+            # 애플리케이션 빌드
+            echo "🔨 Building application..."
+            NODE_ENV=production npm run build
+            
+            # PM2로 재시작
+            echo "🔄 Restarting application..."
+            pm2 restart devtalk || pm2 start npm --name "devtalk" -- start
+            
+            # PM2 자동 시작 설정
+            pm2 save || true
+            
+            echo "✅ Deployment completed!"
+            
+            # 상태 확인
+            pm2 status
+          ENDSSH
+
+      - name: Health check
+        run: |
+          sleep 10
+          curl -f http://${{ secrets.EC2_HOST }}:3000 || echo "⚠️ Health check failed"
+

@@ -136,7 +136,7 @@ export async function GET(request: NextRequest) {
       if (user) {
         // 이메일로 찾은 사용자가 있으면, Google ID 연결
         if (user.googleId && user.googleId !== googleId) {
-          // 이미 다른 Google ID가 연결되어 있으면 에러
+          // 이미 다른 Google ID가 연결되어 있으면 에러 ㄹㅇㄹㄴㄹㅇ
           return NextResponse.redirect(
             `${baseUrl}/?error=${encodeURIComponent('이미 다른 구글 계정으로 가입된 이메일입니다.')}`
           );
