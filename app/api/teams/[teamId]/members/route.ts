@@ -163,7 +163,8 @@ export async function POST(
         where: { email: email.trim() },
       });
     } else if (name) {
-      userToInvite = await prisma.user.findUnique({
+      // name은 unique가 아니므로 findFirst 사용
+      userToInvite = await prisma.user.findFirst({
         where: { name: name.trim() },
       });
     } else {
