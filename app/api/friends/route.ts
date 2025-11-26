@@ -287,7 +287,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log('[API /api/friends] Notification saved to database:', notification.id);
+    // console.log('[API /api/friends] Notification saved to database:', notification.id);
 
     // Send notification to the addressee via socket (if online)
     const io = getIO();
@@ -296,12 +296,12 @@ export async function POST(request: NextRequest) {
       const userRoom = io.sockets.adapter.rooms.get(userId);
       const isUserOnline = !!userRoom && userRoom.size > 0;
       
-      console.log('[API /api/friends] User room check:', {
-        userId,
-        roomExists: !!userRoom,
-        socketsInRoom: userRoom ? Array.from(userRoom) : [],
-        isUserOnline,
-      });
+      // console.log('[API /api/friends] User room check:', {
+      //   userId,
+      //   roomExists: !!userRoom,
+      //   socketsInRoom: userRoom ? Array.from(userRoom) : [],
+      //   isUserOnline,
+      // });
       
       if (isUserOnline && notification.sender) {
         // Socket.IO로 실시간 알림 전송
@@ -322,12 +322,12 @@ export async function POST(request: NextRequest) {
         };
         
         io.to(userId).emit('notification', notificationPayload);
-        console.log('[API /api/friends] Real-time notification sent via Socket.IO to user:', userId);
+        // console.log('[API /api/friends] Real-time notification sent via Socket.IO to user:', userId);
       } else {
-        console.log('[API /api/friends] User is not online, notification saved to DB (will be retrieved on next login)');
+        // console.log('[API /api/friends] User is not online, notification saved to DB (will be retrieved on next login)');
       }
     } else {
-      console.warn('[API /api/friends] Socket.IO instance not available, notification saved to DB only');
+      // console.warn('[API /api/friends] Socket.IO instance not available, notification saved to DB only');
     }
 
     return NextResponse.json(

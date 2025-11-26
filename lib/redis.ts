@@ -49,11 +49,11 @@ export function getRedisClient(): Redis | null {
   });
 
   redis.on('connect', () => {
-    console.log('✅ Redis Client Connected');
+    // console.log('✅ Redis Client Connected');
   });
 
   redis.on('ready', () => {
-    console.log('✅ Redis Client Ready (캐시 사용 가능)');
+    // console.log('✅ Redis Client Ready (캐시 사용 가능)');
   });
 
   // 연결 시도 (비동기)

@@ -42,7 +42,7 @@ export class Cache {
       const serialized = JSON.stringify(value);
       await redis.setex(key, ttl, serialized);
       
-      console.log(`[Cache] Set: ${key} (TTL: ${ttl}s)`);
+      // console.log(`[Cache] Set: ${key} (TTL: ${ttl}s)`);
     } catch (error) {
       // 연결 관련 에러는 조용히 처리
       if (error instanceof Error && error.message.includes('Stream isn\'t writeable')) {
@@ -58,7 +58,7 @@ export class Cache {
   async get<T>(key: string): Promise<T | null> {
     const redis = this.getRedis();
     if (!redis) {
-      console.log(`[Cache] Miss (Redis not available): ${key}`);
+      // console.log(`[Cache] Miss (Redis not available): ${key}`);
       return null;
     }
 
@@ -79,13 +79,13 @@ export class Cache {
       const result = await redis.get(key);
       
       if (!result) {
-        console.log(`[Cache] Miss: ${key}`);
+        // console.log(`[Cache] Miss: ${key}`);
         return null;
       }
 
       try {
         const parsed = JSON.parse(result) as T;
-        console.log(`[Cache] Hit: ${key}`);
+        // console.log(`[Cache] Hit: ${key}`);
         return parsed;
       } catch (error) {
         console.error(`[Cache] Parse error for key ${key}:`, error);
@@ -111,7 +111,7 @@ export class Cache {
     }
 
     await redis.del(key);
-    console.log(`[Cache] Deleted: ${key}`);
+    // console.log(`[Cache] Deleted: ${key}`);
   }
 
   /**
@@ -126,7 +126,7 @@ export class Cache {
     const keys = await redis.keys(pattern);
     if (keys.length > 0) {
       await redis.del(...keys);
-      console.log(`[Cache] Deleted ${keys.length} keys matching pattern: ${pattern}`);
+      // console.log(`[Cache] Deleted ${keys.length} keys matching pattern: ${pattern}`);
     }
   }
 

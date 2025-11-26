@@ -49,13 +49,13 @@ export async function isTokenBlacklisted(token: string): Promise<boolean> {
   // Redis가 없으면 블랙리스트 확인 불가 (토큰 허용)
   const redis = getRedisClient();
   if (!redis) {
-    console.log('[Auth] Redis not available, skipping blacklist check (token allowed)');
+    // console.log('[Auth] Redis not available, skipping blacklist check (token allowed)');
     return false; // Redis가 없으면 블랙리스트 확인 불가 = 토큰 허용
   }
 
   // Redis 연결 상태 확인
   if (!isRedisReady(redis)) {
-    console.log('[Auth] Redis not ready, skipping blacklist check (token allowed)');
+    // console.log('[Auth] Redis not ready, skipping blacklist check (token allowed)');
     return false; // Redis가 준비되지 않았으면 블랙리스트 확인 불가 = 토큰 허용
   }
 
@@ -66,9 +66,9 @@ export async function isTokenBlacklisted(token: string): Promise<boolean> {
         const value = await redis.get(`blacklist:${token}`);
         const isBlacklisted = value !== null;
         if (isBlacklisted) {
-          console.log('[Auth] Token found in blacklist (Redis confirmed)');
+          // console.log('[Auth] Token found in blacklist (Redis confirmed)');
         } else {
-          console.log('[Auth] Token not in blacklist');
+          // console.log('[Auth] Token not in blacklist');
         }
         return isBlacklisted;
       } catch (error) {
@@ -106,7 +106,7 @@ export async function verifyToken(token: string): Promise<{ userId: string; emai
     // JWT가 유효하면 블랙리스트 확인
     const isBlacklisted = await isTokenBlacklisted(token);
     if (isBlacklisted) {
-      console.log('[Auth] Token is blacklisted (valid JWT but blacklisted)');
+      // console.log('[Auth] Token is blacklisted (valid JWT but blacklisted)');
       return null;
     }
 

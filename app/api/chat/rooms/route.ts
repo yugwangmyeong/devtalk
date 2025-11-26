@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all chat rooms for the user
-    console.log('[GET /api/chat/rooms] Fetching rooms for user:', decoded.userId);
+    // console.log('[GET /api/chat/rooms] Fetching rooms for user:', decoded.userId);
     
     // Optional filter by room type (DM, GROUP, etc.)
     const typeFilter = request.nextUrl.searchParams.get('type');

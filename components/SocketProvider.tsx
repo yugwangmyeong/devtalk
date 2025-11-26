@@ -10,20 +10,20 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
   // 컴포넌트 마운트 확인
   useEffect(() => {
-    console.log('[SocketProvider] Component mounted');
+    // console.log('[SocketProvider] Component mounted');
   }, []);
 
   useEffect(() => {
-    console.log('[SocketProvider] useEffect triggered:', {
-      isAuthenticated,
-      hasUser: !!user,
-      userId: user?.id,
-      isAuthLoading,
-    });
+    // console.log('[SocketProvider] useEffect triggered:', {
+    //   isAuthenticated,
+    //   hasUser: !!user,
+    //   userId: user?.id,
+    //   isAuthLoading,
+    // });
 
     // 인증 로딩 중이면 기다림
     if (isAuthLoading) {
-      console.log('[SocketProvider] Auth still loading, waiting...');
+      // console.log('[SocketProvider] Auth still loading, waiting...');
       return;
     }
 
@@ -47,24 +47,24 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       };
 
       getToken().then((token) => {
-        console.log('[SocketProvider] Token found:', !!token);
+        // console.log('[SocketProvider] Token found:', !!token);
         
         if (token) {
-          console.log('[SocketProvider] Calling connect()...');
+          // console.log('[SocketProvider] Calling connect()...');
           connect(token);
         } else {
-          console.warn('[SocketProvider] No token found');
+          // console.warn('[SocketProvider] No token found');
         }
       });
     } else {
-      console.log('[SocketProvider] Not authenticated or no user, skipping connection', {
-        isAuthenticated,
-        hasUser: !!user,
-      });
+      // console.log('[SocketProvider] Not authenticated or no user, skipping connection', {
+      //   isAuthenticated,
+      //   hasUser: !!user,
+      // });
     }
 
     return () => {
-      console.log('[SocketProvider] Cleanup: disconnecting socket');
+      // console.log('[SocketProvider] Cleanup: disconnecting socket');
       disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -78,16 +78,16 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
 
     // Listen for friendsUpdated event from server
     const handleFriendsUpdated = () => {
-      console.log('[SocketProvider] friendsUpdated event received from server');
+      // console.log('[SocketProvider] friendsUpdated event received from server');
       // Convert Socket.IO event to window event for FriendsPanel
       window.dispatchEvent(new CustomEvent('friendsUpdated'));
     };
     socket.on('friendsUpdated', handleFriendsUpdated);
     
-    console.log('[SocketProvider] friendsUpdated listener registered for socket:', socket.id);
+    // console.log('[SocketProvider] friendsUpdated listener registered for socket:', socket.id);
 
     return () => {
-      console.log('[SocketProvider] Cleaning up friendsUpdated listener');
+      // console.log('[SocketProvider] Cleaning up friendsUpdated listener');
       socket.off('friendsUpdated', handleFriendsUpdated);
     };
   }, [socket]);

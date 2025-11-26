@@ -26,8 +26,8 @@ app.prepare().then(() => {
   const io = initializeSocket(httpServer);
 
   httpServer.listen(port, () => {
-    console.log(`> Ready on http://${hostname}:${port}`);
-    console.log(`> Socket.IO initialized on /api/socket`);
+    // console.log(`> Ready on http://${hostname}:${port}`);
+    // console.log(`> Socket.IO initialized on /api/socket`);
   });
 });
 

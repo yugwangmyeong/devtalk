@@ -43,7 +43,7 @@ export class MessageQueue {
     // List의 왼쪽에 추가 (FIFO)
     await this.redis.lpush(this.queueName, JSON.stringify(queueJob));
     
-    console.log(`[Queue] Job enqueued: ${jobId} (type: ${job.type})`);
+    // console.log(`[Queue] Job enqueued: ${jobId} (type: ${job.type})`);
     
     return jobId;
   }
@@ -65,7 +65,7 @@ export class MessageQueue {
     }
 
     const jobData = JSON.parse(result[1]) as QueueJob;
-    console.log(`[Queue] Job dequeued: ${jobData.id} (type: ${jobData.type})`);
+    // console.log(`[Queue] Job dequeued: ${jobData.id} (type: ${jobData.type})`);
     
     return jobData;
   }
@@ -85,7 +85,7 @@ export class MessageQueue {
     }
 
     const jobData = JSON.parse(result) as QueueJob;
-    console.log(`[Queue] Job dequeued: ${jobData.id} (type: ${jobData.type})`);
+    // console.log(`[Queue] Job dequeued: ${jobData.id} (type: ${jobData.type})`);
     
     return jobData;
   }
@@ -108,7 +108,7 @@ export class MessageQueue {
         error: error?.message,
         failedAt: Date.now(),
       }));
-      console.log(`[Queue] Job failed after ${attempts} attempts: ${job.id}`);
+      // console.log(`[Queue] Job failed after ${attempts} attempts: ${job.id}`);
       return;
     }
 
@@ -121,7 +121,7 @@ export class MessageQueue {
     };
     
     await this.redis.lpush(retryQueue, JSON.stringify(retryJob));
-    console.log(`[Queue] Job retry scheduled: ${job.id} (attempt ${attempts})`);
+    // console.log(`[Queue] Job retry scheduled: ${job.id} (attempt ${attempts})`);
   }
 
   /**
@@ -144,7 +144,7 @@ export class MessageQueue {
     }
 
     await this.redis.del(this.queueName);
-    console.log(`[Queue] Cleared: ${this.queueName}`);
+    // console.log(`[Queue] Cleared: ${this.queueName}`);
   }
 
   /**

@@ -36,11 +36,11 @@ export async function GET(request: NextRequest) {
       const cacheTime = Date.now() - cacheStart;
       
       if (cached) {
-        console.log(`[Teams API] ✅ Cache HIT (${cacheTime}ms) for user ${userId}`);
+        // console.log(`[Teams API] ✅ Cache HIT (${cacheTime}ms) for user ${userId}`);
         return cached;
       }
 
-      console.log(`[Teams API] ❌ Cache MISS (${cacheTime}ms) for user ${userId} - DB 쿼리 실행`);
+      // console.log(`[Teams API] ❌ Cache MISS (${cacheTime}ms) for user ${userId} - DB 쿼리 실행`);
 
     // Get user info for default team creation
     const user = await prisma.user.findUnique({

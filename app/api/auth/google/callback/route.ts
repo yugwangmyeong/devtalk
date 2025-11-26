@@ -88,13 +88,61 @@ export async function GET(request: NextRequest) {
     }
 
     // Find or create user
+    // 1. 먼저 Google ID로 사용자 찾기 (같은 Google 계정은 항상 같은 사용자)
     let user = await prisma.user.findUnique({
-      where: { email },
+      where: { googleId },
     });
 
     if (user) {
-      // Update user if they don't have googleId yet
-      if (!user.googleId) {
+      // Google ID로 찾은 사용자가 있으면, 이메일이 변경되었을 수 있으므로 업데이트
+      if (user.email !== email) {
+        // 이메일이 다른 사용자가 이미 존재하는지 확인
+        const emailUser = await prisma.user.findUnique({
+          where: { email },
+        });
+        
+        if (emailUser && emailUser.id !== user.id) {
+          // 다른 사용자가 이 이메일을 사용 중이면 에러
+          return NextResponse.redirect(
+            `${baseUrl}/?error=${encodeURIComponent('이 이메일은 이미 다른 계정에서 사용 중입니다.')}`
+          );
+        }
+        
+        // 이메일 업데이트
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            email,
+            profileImageUrl: profileImageUrl || user.profileImageUrl,
+            name: name || user.name,
+          },
+        });
+      } else {
+        // 이메일이 같으면 프로필 정보만 업데이트
+        user = await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            profileImageUrl: profileImageUrl || user.profileImageUrl,
+            name: name || user.name,
+          },
+        });
+      }
+    } else {
+      // 2. Google ID로 찾지 못했으면 이메일로 찾기
+      user = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (user) {
+        // 이메일로 찾은 사용자가 있으면, Google ID 연결
+        if (user.googleId && user.googleId !== googleId) {
+          // 이미 다른 Google ID가 연결되어 있으면 에러
+          return NextResponse.redirect(
+            `${baseUrl}/?error=${encodeURIComponent('이미 다른 구글 계정으로 가입된 이메일입니다.')}`
+          );
+        }
+        
+        // Google ID 업데이트 (일반 가입 → Google 연결)
         user = await prisma.user.update({
           where: { id: user.id },
           data: {
@@ -103,13 +151,7 @@ export async function GET(request: NextRequest) {
             name: name || user.name,
           },
         });
-      } else if (user.googleId !== googleId) {
-        // Google ID mismatch - this shouldn't happen, but handle it
-        return NextResponse.redirect(
-          `${baseUrl}/?error=${encodeURIComponent('이미 다른 구글 계정으로 가입된 이메일입니다.')}`
-        );
-      }
-    } else {
+      } else {
       // Create new user
       user = await prisma.user.create({
         data: {

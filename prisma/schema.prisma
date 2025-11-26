@@ -58,7 +58,7 @@ model ChatRoom {
 }
 
 // ChatRoomMember - many-to-many relationship
-model ChatRoomMember {
+model ChatRoomMember {``
   id        String   @id @default(cuid())
   userId    String
   chatRoomId String

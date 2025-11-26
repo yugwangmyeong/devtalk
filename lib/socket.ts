@@ -31,25 +31,25 @@ export function initializeSocket(server: HTTPServer | HTTPSServer) {
   });
 
   io.on('connection', (socket) => {
-    console.log('[Socket Server] Client connected:', socket.id);
+    // console.log('[Socket Server] Client connected:', socket.id);
     setupSocketHandlers(socket, io);
   });
 
   io.on('connection_error', (error) => {
-    console.error('[Socket Server] Connection error:', error);
+    // console.error('[Socket Server] Connection error:', error);
   });
 
   // Store in both module-level variable and global object
   globalIO = io;
   global.io = io;
-  console.log('[Socket] Socket.IO initialized, globalIO set:', !!globalIO, 'global.io:', !!global.io);
+  // console.log('[Socket] Socket.IO initialized, globalIO set:', !!globalIO, 'global.io:', !!global.io);
   return io;
 }
 
 export function getIO(): SocketIOServer | null {
   // Try to get from global first (for API routes), then fall back to module variable
   const io = global.io || globalIO;
-  console.log('[Socket] getIO() called, global.io:', !!global.io, 'globalIO:', !!globalIO, 'result:', !!io);
+  // console.log('[Socket] getIO() called, global.io:', !!global.io, 'globalIO:', !!globalIO, 'result:', !!io);
   return io || null;
 }
 
