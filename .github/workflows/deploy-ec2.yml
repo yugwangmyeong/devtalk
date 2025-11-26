@@ -24,6 +24,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          # 캐시는 선택사항 - 경로 문제 시 자동으로 무시됨
           cache: 'npm'
           cache-dependency-path: devtalk/package-lock.json
 
