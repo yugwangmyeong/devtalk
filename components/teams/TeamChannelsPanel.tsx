@@ -624,7 +624,11 @@ export function TeamChannelsPanel({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
-                      handleSearchButtonClick(e);
+                      if (!searchQuery.trim()) {
+                        setSearchResults([]);
+                        return;
+                      }
+                      handleSearchUsers(searchQuery);
                     }
                   }}
                   autoFocus

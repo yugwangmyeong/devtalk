@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
         );
       }
 
-      const decoded = verifyToken(token);
+      const decoded = await verifyToken(token);
 
       if (!decoded) {
         return NextResponse.json(
@@ -36,11 +36,11 @@ export async function GET(request: NextRequest) {
       const cacheTime = Date.now() - cacheStart;
       
       if (cached) {
-        console.log(`[Teams API] ✅ Cache HIT (${cacheTime}ms) for user ${userId}`);
+        // console.log(`[Teams API] ✅ Cache HIT (${cacheTime}ms) for user ${userId}`);
         return cached;
       }
 
-      console.log(`[Teams API] ❌ Cache MISS (${cacheTime}ms) for user ${userId} - DB 쿼리 실행`);
+      // console.log(`[Teams API] ❌ Cache MISS (${cacheTime}ms) for user ${userId} - DB 쿼리 실행`);
 
     // Get user info for default team creation
     const user = await prisma.user.findUnique({
@@ -161,11 +161,53 @@ export async function GET(request: NextRequest) {
         // Continue even if channel creation fails
       }
 
+      // Fetch the TeamMember record with the same structure as the query above
+      const defaultTeamMember = await prisma.teamMember.findUnique({
+        where: {
+          userId_teamId: {
+            userId: user.id,
+            teamId: defaultTeam.id,
+          },
+        },
+        include: {
+          team: {
+            include: {
+              creator: {
+                select: {
+                  id: true,
+                  email: true,
+                  name: true,
+                  profileImageUrl: true,
+                },
+              },
+              members: {
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      email: true,
+                      name: true,
+                      profileImageUrl: true,
+                    },
+                  },
+                },
+              },
+              _count: {
+                select: {
+                  members: true,
+                  chatRooms: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
       // Add the default team to teamMembers array
-      teamMembers = [{
-        role: 'OWNER' as const,
-        team: defaultTeam,
-      }];
+      if (!defaultTeamMember) {
+        throw new Error('Failed to create default team member');
+      }
+      teamMembers = [defaultTeamMember];
     }
 
       const teams = teamMembers.map((tm) => ({
@@ -221,7 +263,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded) {
       return NextResponse.json(

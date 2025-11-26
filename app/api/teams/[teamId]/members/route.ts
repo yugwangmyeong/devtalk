@@ -18,7 +18,7 @@ export async function GET(
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded) {
       return NextResponse.json(
@@ -105,7 +105,7 @@ export async function POST(
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded) {
       console.error('[POST /api/teams/[teamId]/members] Invalid token');
@@ -163,7 +163,8 @@ export async function POST(
         where: { email: email.trim() },
       });
     } else if (name) {
-      userToInvite = await prisma.user.findUnique({
+      // name은 unique가 아니므로 findFirst 사용
+      userToInvite = await prisma.user.findFirst({
         where: { name: name.trim() },
       });
     } else {
@@ -351,7 +352,7 @@ export async function DELETE(
       );
     }
 
-    const decoded = verifyToken(token);
+    const decoded = await verifyToken(token);
 
     if (!decoded) {
       return NextResponse.json(

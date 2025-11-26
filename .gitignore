@@ -42,3 +42,6 @@ next-env.d.ts
 
 # user uploads
 /public/uploads
+
+#문서X
+*.md

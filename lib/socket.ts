@@ -12,11 +12,18 @@ declare global {
 let globalIO: SocketIOServer | null = null;
 
 export function initializeSocket(server: HTTPServer | HTTPSServer) {
+  const allowedOrigins: string[] = [
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.NEXT_PUBLIC_SOCKET_URL,
+    'http://localhost:3000',
+    'http://15.165.117.114:3000',
+  ].filter((origin): origin is string => typeof origin === 'string' && origin.length > 0);
+
   const io = new SocketIOServer(server, {
     path: '/api/socket',
     addTrailingSlash: false,
     cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+      origin: allowedOrigins.length > 0 ? allowedOrigins : true, // 모든 origin 허용 (개발용)
       methods: ['GET', 'POST'],
       credentials: true,
     },
@@ -24,25 +31,25 @@ export function initializeSocket(server: HTTPServer | HTTPSServer) {
   });
 
   io.on('connection', (socket) => {
-    console.log('[Socket Server] Client connected:', socket.id);
+    // console.log('[Socket Server] Client connected:', socket.id);
     setupSocketHandlers(socket, io);
   });
 
   io.on('connection_error', (error) => {
-    console.error('[Socket Server] Connection error:', error);
+    // console.error('[Socket Server] Connection error:', error);
   });
 
   // Store in both module-level variable and global object
   globalIO = io;
   global.io = io;
-  console.log('[Socket] Socket.IO initialized, globalIO set:', !!globalIO, 'global.io:', !!global.io);
+  // console.log('[Socket] Socket.IO initialized, globalIO set:', !!globalIO, 'global.io:', !!global.io);
   return io;
 }
 
 export function getIO(): SocketIOServer | null {
   // Try to get from global first (for API routes), then fall back to module variable
   const io = global.io || globalIO;
-  console.log('[Socket] getIO() called, global.io:', !!global.io, 'globalIO:', !!globalIO, 'result:', !!io);
+  // console.log('[Socket] getIO() called, global.io:', !!global.io, 'globalIO:', !!globalIO, 'result:', !!io);
   return io || null;
 }
 

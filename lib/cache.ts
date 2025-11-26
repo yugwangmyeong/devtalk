@@ -4,7 +4,7 @@
  * 대시보드 데이터와 같은 자주 조회되는 데이터를 캐싱
  */
 
-import { getRedisClient } from './redis';
+import { getRedisClient, isRedisReady } from './redis';
 
 export class Cache {
   private defaultTTL: number = 300; // 기본 5분
@@ -25,10 +25,31 @@ export class Cache {
       return; // Redis가 없으면 캐싱하지 않음
     }
 
-    const serialized = JSON.stringify(value);
-    await redis.setex(key, ttl, serialized);
-    
-    console.log(`[Cache] Set: ${key} (TTL: ${ttl}s)`);
+    try {
+      // 연결 상태 확인
+      if (!isRedisReady(redis)) {
+        // 연결 중이면 잠시 대기
+        if (redis.status === 'connecting' || redis.status === 'reconnecting') {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          if (!isRedisReady(redis)) {
+            return; // 연결 실패 시 조용히 실패
+          }
+        } else {
+          return; // 연결되지 않음
+        }
+      }
+
+      const serialized = JSON.stringify(value);
+      await redis.setex(key, ttl, serialized);
+      
+      // console.log(`[Cache] Set: ${key} (TTL: ${ttl}s)`);
+    } catch (error) {
+      // 연결 관련 에러는 조용히 처리
+      if (error instanceof Error && error.message.includes('Stream isn\'t writeable')) {
+        return;
+      }
+      console.error(`[Cache] Set error for key ${key}:`, error);
+    }
   }
 
   /**
@@ -37,27 +58,44 @@ export class Cache {
   async get<T>(key: string): Promise<T | null> {
     const redis = this.getRedis();
     if (!redis) {
-      console.log(`[Cache] Miss (Redis not available): ${key}`);
+      // console.log(`[Cache] Miss (Redis not available): ${key}`);
       return null;
     }
 
     try {
+      // 연결 상태 확인
+      if (!isRedisReady(redis)) {
+        // 연결 중이면 잠시 대기
+        if (redis.status === 'connecting' || redis.status === 'reconnecting') {
+          await new Promise(resolve => setTimeout(resolve, 100));
+          if (!isRedisReady(redis)) {
+            return null; // 연결 실패 시 null 반환
+          }
+        } else {
+          return null; // 연결되지 않음
+        }
+      }
+
       const result = await redis.get(key);
       
       if (!result) {
-        console.log(`[Cache] Miss: ${key}`);
+        // console.log(`[Cache] Miss: ${key}`);
         return null;
       }
 
       try {
         const parsed = JSON.parse(result) as T;
-        console.log(`[Cache] Hit: ${key}`);
+        // console.log(`[Cache] Hit: ${key}`);
         return parsed;
       } catch (error) {
         console.error(`[Cache] Parse error for key ${key}:`, error);
         return null;
       }
     } catch (error) {
+      // 연결 관련 에러는 조용히 처리
+      if (error instanceof Error && error.message.includes('Stream isn\'t writeable')) {
+        return null;
+      }
       console.error(`[Cache] Get error for key ${key}:`, error);
       return null;
     }
@@ -73,7 +111,7 @@ export class Cache {
     }
 
     await redis.del(key);
-    console.log(`[Cache] Deleted: ${key}`);
+    // console.log(`[Cache] Deleted: ${key}`);
   }
 
   /**
@@ -88,7 +126,7 @@ export class Cache {
     const keys = await redis.keys(pattern);
     if (keys.length > 0) {
       await redis.del(...keys);
-      console.log(`[Cache] Deleted ${keys.length} keys matching pattern: ${pattern}`);
+      // console.log(`[Cache] Deleted ${keys.length} keys matching pattern: ${pattern}`);
     }
   }
 

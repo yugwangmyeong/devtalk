@@ -63,6 +63,7 @@ export interface ServerToClientEvents {
       profileImageUrl: string | null;
     };
   }) => void;
+  friendsUpdated: () => void;
   error: (data: { message: string }) => void;
 }
 

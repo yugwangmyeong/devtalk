@@ -98,7 +98,7 @@ export const getNotificationIcon = (type: Notification['type']) => {
 export const isTeamWorkspaceNotification = (notification: Notification): boolean => {
   return (
     notification.type === 'team_invite' ||
-    (notification.type === 'message' && notification.teamId && notification.channelId)
+    (notification.type === 'message' && !!notification.teamId && !!notification.channelId)
   );
 };
 
@@ -109,7 +109,7 @@ export const isPersonalChatNotification = (notification: Notification): boolean 
     notification.type === 'chat_invite' ||
     notification.type === 'room_created' ||
     notification.type === 'user_joined' ||
-    (notification.type === 'message' && notification.roomId && !notification.teamId)
+    (notification.type === 'message' && !!notification.roomId && !notification.teamId)
   );
 };
 
