@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ master, develop ]
+    branches: [ aws2, develop ]
   pull_request:
-    branches: [ master, develop ]
+    branches: [ aws2, develop ]
 
 jobs:
   lint-and-test:
