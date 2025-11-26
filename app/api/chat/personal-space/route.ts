@@ -85,12 +85,12 @@ export async function GET(request: NextRequest) {
     // Filter to only personal spaces (exactly 1 member) and get the most recent one
     const personalRoom = personalRooms.find(room => room.members.length === 1);
 
-    console.log('[API] Personal space lookup:', {
-      totalRooms: personalRooms.length,
-      personalSpaces: personalRooms.filter(r => r.members.length === 1).length,
-      selectedRoomId: personalRoom?.id,
-      selectedRoomUpdatedAt: personalRoom?.updatedAt,
-    });
+    // console.log('[API] Personal space lookup:', {
+    //   totalRooms: personalRooms.length,
+    //   personalSpaces: personalRooms.filter(r => r.members.length === 1).length,
+    //   selectedRoomId: personalRoom?.id,
+    //   selectedRoomUpdatedAt: personalRoom?.updatedAt,
+    // });
 
     // Check if it's truly a personal space (only one member - the user themselves)
     if (personalRoom && personalRoom.members.length === 1) {
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest) {
     // Double-check that no personal space exists before creating
     const existingPersonalSpace = personalRooms.find(room => room.members.length === 1);
     if (existingPersonalSpace) {
-      console.log('[API] Personal space already exists, returning existing one:', existingPersonalSpace.id);
+      // console.log('[API] Personal space already exists, returning existing one:', existingPersonalSpace.id);
       // Return the existing one instead of creating a new one
       const lastMessage = existingPersonalSpace.messages[0];
       const formattedRoom = {
@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ room: formattedRoom }, { status: 200 });
     }
 
-    console.log('[API] No personal space found, creating new one');
+    // console.log('[API] No personal space found, creating new one');
     const newPersonalRoom = await prisma.chatRoom.create({
       data: {
         type: 'DM',

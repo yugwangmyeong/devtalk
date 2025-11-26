@@ -75,12 +75,12 @@ export async function GET(request: NextRequest) {
     // Check if this is a personal space (only one member - the user themselves)
     const isPersonalSpace = member.chatRoom.type === 'DM' && member.chatRoom.members.length === 1;
 
-    console.log('[API] Fetching messages:', {
-      roomId,
-      userId: decoded.userId,
-      isPersonalSpace,
-      memberCount: member.chatRoom.members.length,
-    });
+    // console.log('[API] Fetching messages:', {
+    //   roomId,
+    //   userId: decoded.userId,
+    //   isPersonalSpace,
+    //   memberCount: member.chatRoom.members.length,
+    // });
 
     // Check if this is a team channel (GROUP room linked to TeamChannel)
     const teamChannel = await prisma.teamChannel.findUnique({
@@ -97,14 +97,14 @@ export async function GET(request: NextRequest) {
     // 개인 공간인 경우, 자기 자신이 작성한 메시지만 표시
     if (isPersonalSpace) {
       whereClause.userId = decoded.userId;
-      console.log('[API] Personal space filter applied:', { userId: decoded.userId });
+      // console.log('[API] Personal space filter applied:', { userId: decoded.userId });
     }
 
     if (cursor) {
       whereClause.id = { lt: cursor };
     }
 
-    console.log('[API] Message query where clause:', whereClause);
+    // console.log('[API] Message query where clause:', whereClause);
 
     const messages = await prisma.message.findMany({
       where: whereClause,
@@ -282,12 +282,12 @@ export async function POST(request: NextRequest) {
 
     const isPersonalSpace = chatRoom?.type === 'DM' && chatRoom?.members.length === 1;
 
-    console.log('[API] Creating message:', {
-      roomId,
-      userId: decoded.userId,
-      content: content.trim().substring(0, 50),
-      isPersonalSpace,
-    });
+    // console.log('[API] Creating message:', {
+    //   roomId,
+    //   userId: decoded.userId,
+    //   content: content.trim().substring(0, 50),
+    //   isPersonalSpace,
+    // });
 
     // Create message
     const message = await prisma.message.create({
@@ -322,14 +322,14 @@ export async function POST(request: NextRequest) {
     // Use the re-fetched user data if available
     const messageUser = user || message.user;
 
-    console.log('[API] Message created successfully:', {
-      messageId: message.id,
-      roomId: message.chatRoomId,
-      userId: message.userId,
-      isPersonalSpace,
-      userProfileImageUrl: messageUser.profileImageUrl,
-      originalUserProfileImageUrl: message.user.profileImageUrl,
-    });
+    // console.log('[API] Message created successfully:', {
+    //   messageId: message.id,
+    //   roomId: message.chatRoomId,
+    //   userId: message.userId,
+    //   isPersonalSpace,
+    //   userProfileImageUrl: messageUser.profileImageUrl,
+    //   originalUserProfileImageUrl: message.user.profileImageUrl,
+    // });
 
     // Update chat room's updatedAt
     await prisma.chatRoom.update({
@@ -364,50 +364,50 @@ export async function POST(request: NextRequest) {
         updatedAt: new Date().toISOString(),
       };
 
-      console.log('[API] Sending roomMessageUpdate via socket:', {
-        roomId: message.chatRoomId,
-        userId: message.userId,
-        profileImageUrl: roomMessageUpdate.lastMessage.user.profileImageUrl,
-        originalProfileImageUrl: messageUser.profileImageUrl,
-        memberUserIds,
-      });
+      // console.log('[API] Sending roomMessageUpdate via socket:', {
+      //   roomId: message.chatRoomId,
+      //   userId: message.userId,
+      //   profileImageUrl: roomMessageUpdate.lastMessage.user.profileImageUrl,
+      //   originalProfileImageUrl: messageUser.profileImageUrl,
+      //   memberUserIds,
+      // });
 
       // Send roomMessageUpdate to all room members (except sender)
-      console.log('[API] Checking connected sockets:', {
-        totalSockets: io.sockets.sockets.size,
-        memberUserIds,
-        senderUserId: decoded.userId,
-      });
+      // console.log('[API] Checking connected sockets:', {
+      //   totalSockets: io.sockets.sockets.size,
+      //   memberUserIds,
+      //   senderUserId: decoded.userId,
+      // });
       
       let sentCount = 0;
       io.sockets.sockets.forEach((connectedSocket) => {
         const socketUserId = (connectedSocket as any).userId;
-        console.log('[API] Checking socket:', {
-          socketId: connectedSocket.id,
-          socketUserId,
-          hasUserId: !!socketUserId,
-          isMember: socketUserId && memberUserIds.includes(socketUserId),
-          isSender: socketUserId === decoded.userId,
-        });
+        // console.log('[API] Checking socket:', {
+        //   socketId: connectedSocket.id,
+        //   socketUserId,
+        //   hasUserId: !!socketUserId,
+        //   isMember: socketUserId && memberUserIds.includes(socketUserId),
+        //   isSender: socketUserId === decoded.userId,
+        // });
         
         if (socketUserId && memberUserIds.includes(socketUserId)) {
           if (socketUserId !== decoded.userId) {
-            console.log(`[API] Sending roomMessageUpdate to user ${socketUserId} (socket ${connectedSocket.id})`);
+            // console.log(`[API] Sending roomMessageUpdate to user ${socketUserId} (socket ${connectedSocket.id})`);
             connectedSocket.emit('roomMessageUpdate', roomMessageUpdate);
             sentCount++;
           } else {
-            console.log(`[API] Skipping sender ${socketUserId}`);
+            // console.log(`[API] Skipping sender ${socketUserId}`);
           }
         } else {
           if (socketUserId) {
-            console.log(`[API] Socket ${connectedSocket.id} user ${socketUserId} is not a member of this room`);
+            // console.log(`[API] Socket ${connectedSocket.id} user ${socketUserId} is not a member of this room`);
           } else {
-            console.log(`[API] Socket ${connectedSocket.id} has no userId (not authenticated)`);
+            // console.log(`[API] Socket ${connectedSocket.id} has no userId (not authenticated)`);
           }
         }
       });
       
-      console.log(`[API] Sent roomMessageUpdate to ${sentCount} users`);
+      // console.log(`[API] Sent roomMessageUpdate to ${sentCount} users`);
     } else {
       console.warn('[API] Socket.IO not available, skipping roomMessageUpdate');
     }
