@@ -17,7 +17,7 @@ datasource db {
 model User {
   id             String   @id @default(cuid())
   email          String   @unique
-  name           String?  @unique
+  name           String?
   password       String? // Hashed password (optional for OAuth users)
   googleId       String?  @unique // Google OAuth ID
   profileImageUrl String? // Profile image URL
