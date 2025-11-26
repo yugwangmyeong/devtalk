@@ -152,43 +152,44 @@ export async function GET(request: NextRequest) {
           },
         });
       } else {
-      // Create new user
-      user = await prisma.user.create({
-        data: {
-          email,
-          googleId,
-          name,
-          profileImageUrl,
-          password: null, // OAuth users don't have passwords
-        },
-      });
+        // Create new user
+        user = await prisma.user.create({
+          data: {
+            email,
+            googleId,
+            name,
+            profileImageUrl,
+            password: null, // OAuth users don't have passwords
+          },
+        });
 
-      // Create default workspace/team for the new user
-      const defaultTeamName = name 
-        ? `${name}의 워크스페이스`
-        : `${email.split('@')[0]}의 워크스페이스`;
-      
-      const defaultTeam = await prisma.team.create({
-        data: {
-          name: defaultTeamName,
-          description: '기본 워크스페이스',
-          creatorId: user.id,
-          members: {
-            create: {
-              userId: user.id,
-              role: 'OWNER',
-              status: 'ACCEPTED',
+        // Create default workspace/team for the new user
+        const defaultTeamName = name 
+          ? `${name}의 워크스페이스`
+          : `${email.split('@')[0]}의 워크스페이스`;
+        
+        const defaultTeam = await prisma.team.create({
+          data: {
+            name: defaultTeamName,
+            description: '기본 워크스페이스',
+            creatorId: user.id,
+            members: {
+              create: {
+                userId: user.id,
+                role: 'OWNER',
+                status: 'ACCEPTED',
+              },
             },
           },
-        },
-      });
+        });
 
-      // Create default channels for the team
-      try {
-        await ensureDefaultTeamChannels(defaultTeam.id);
-      } catch (error) {
-        console.error('Error creating default channels:', error);
-        // Continue even if channel creation fails
+        // Create default channels for the team
+        try {
+          await ensureDefaultTeamChannels(defaultTeam.id);
+        } catch (error) {
+          console.error('Error creating default channels:', error);
+          // Continue even if channel creation fails
+        }
       }
     }
 
