@@ -27,17 +27,14 @@ jobs:
           cache: false  # 캐시 비활성화
 
       - name: Install dependencies
-        working-directory: ./devtalk
         run: npm ci
 
       - name: Run tests
-        working-directory: ./devtalk
         run: npm run test
         env:
           CI: true
 
       - name: Run performance tests
-        working-directory: ./devtalk
         run: npm run test:performance
         continue-on-error: true  # 성능 테스트는 실패해도 CI를 중단하지 않음
 

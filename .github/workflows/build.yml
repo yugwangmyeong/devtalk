@@ -20,17 +20,14 @@ jobs:
           cache: false  # 캐시 비활성화
 
       - name: Install dependencies
-        working-directory: ./devtalk
         run: npm ci
 
       - name: Generate Prisma Client
-        working-directory: ./devtalk
         run: npx prisma generate
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL || 'mysql://dummy:dummy@localhost:3306/dummy' }}
 
       - name: Build application
-        working-directory: ./devtalk
         run: npm run build
         env:
           NODE_ENV: production
@@ -40,6 +37,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: build-output
-          path: devtalk/.next
+          path: .next
           retention-days: 7
 

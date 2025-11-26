@@ -21,25 +21,20 @@ jobs:
           cache: false  # 캐시 비활성화
 
       - name: Install dependencies
-        working-directory: ./devtalk
         run: npm ci
 
       - name: Run linter
-        working-directory: ./devtalk
         run: npm run lint
 
       - name: Type check
-        working-directory: ./devtalk
         run: npx tsc --noEmit
 
       - name: Run tests
-        working-directory: ./devtalk
         run: npm run test
         env:
           CI: true
 
       - name: Build
-        working-directory: ./devtalk
         run: npm run build
         env:
           # GitHub Secrets에 DATABASE_URL이 있으면 사용, 없으면 더미 값 사용
