@@ -1,0 +1,46 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: devtalk/package-lock.json
+
+      - name: Install dependencies
+        working-directory: ./devtalk
+        run: npm ci
+
+      - name: Generate Prisma Client
+        working-directory: ./devtalk
+        run: npx prisma generate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'mysql://dummy:dummy@localhost:3306/dummy' }}
+
+      - name: Build application
+        working-directory: ./devtalk
+        run: npm run build
+        env:
+          NODE_ENV: production
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'mysql://dummy:dummy@localhost:3306/dummy' }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: devtalk/.next
+          retention-days: 7
+
