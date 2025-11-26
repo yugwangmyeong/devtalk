@@ -12,6 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: false  # 하나가 실패해도 다른 버전은 계속 실행
       matrix:
         node-version: [18, 20]
 
@@ -23,8 +24,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: 'npm'
-          cache-dependency-path: devtalk/package-lock.json
 
       - name: Install dependencies
         working-directory: ./devtalk
