@@ -197,7 +197,7 @@ export function LoginPage() {
         <div className="login-content">
           {/* Title */}
           <h1 className="login-title">
-            <span>DevTALK</span>
+            <span>DevTALKs</span>
           </h1>
 
           {/* Divider */}

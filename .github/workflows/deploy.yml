@@ -1,0 +1,24 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - aws2
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+       
+      - name : Deploy to EC2 via SSHe
+        uses : appleboy/ssh-action@master
+        with:
+          key : ${{ secrets.SSH_PRIVATE_KEY }}
+          host : ${{ secrets.SSH_HOST }}
+          username : ${{ secrets.SSH_USER }}
+          script : 
+                 /home/ubuntu/devtalk/devtalk/deploy.sh
