@@ -160,6 +160,21 @@ export async function PATCH(
         friendId: friend.id,
       });
 
+      // 친구 요청 알림 삭제 (수락한 사용자에게 온 알림)
+      try {
+        await prisma.notification.deleteMany({
+          where: {
+            userId: decoded.userId, // 수락한 사용자
+            type: 'FRIEND_REQUEST',
+            friendshipId: friendshipId,
+          },
+        });
+        console.log('[API /api/friends/[friendshipId]] Friend request notification deleted');
+      } catch (error) {
+        console.error('[API /api/friends/[friendshipId]] Failed to delete notification:', error);
+        // 알림 삭제 실패해도 친구 요청 수락은 성공 처리
+      }
+
       // 양쪽 사용자에게 친구 목록 업데이트 알림 전송
       const io = getIO();
       if (io) {
@@ -210,6 +225,21 @@ export async function PATCH(
         friendshipId,
         userId: decoded.userId,
       });
+
+      // 친구 요청 알림 삭제 (거절한 사용자에게 온 알림)
+      try {
+        await prisma.notification.deleteMany({
+          where: {
+            userId: decoded.userId, // 거절한 사용자
+            type: 'FRIEND_REQUEST',
+            friendshipId: friendshipId,
+          },
+        });
+        console.log('[API /api/friends/[friendshipId]] Friend request notification deleted');
+      } catch (error) {
+        console.error('[API /api/friends/[friendshipId]] Failed to delete notification:', error);
+        // 알림 삭제 실패해도 친구 요청 거절은 성공 처리
+      }
 
       // 양쪽 사용자에게 친구 목록 업데이트 알림 전송
       const io = getIO();
