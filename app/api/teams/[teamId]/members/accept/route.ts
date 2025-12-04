@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getTokenFromCookies, verifyToken } from '@/lib/auth';
+import { cache, getCacheKey } from '@/lib/cache';
+import { getIO } from '@/lib/socket';
 
 // Accept team invitation
 export async function POST(
@@ -98,6 +100,18 @@ export async function POST(
         });
         console.log(`[Team Accept] Added user ${decoded.userId} to ${chatRoomIdsToAdd.length} team channels`);
       }
+    }
+
+    // 캐시 무효화 (팀 목록 캐시 삭제)
+    const cacheKey = getCacheKey('teams', decoded.userId);
+    await cache.delete(cacheKey);
+    console.log(`[Team Accept] Cache invalidated for user ${decoded.userId}`);
+
+    // Socket.IO로 팀 목록 업데이트 이벤트 전송
+    const io = getIO();
+    if (io) {
+      io.to(decoded.userId).emit('teamsUpdated');
+      console.log(`[Team Accept] Teams updated event sent to user ${decoded.userId}`);
     }
 
     return NextResponse.json({ success: true }, { status: 200 });
