@@ -108,16 +108,6 @@ export async function GET(request: NextRequest) {
 
     const messages = await prisma.message.findMany({
       where: whereClause,
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            profileImageUrl: true,
-          },
-        },
-      },
       orderBy: {
         createdAt: 'desc',
       },
