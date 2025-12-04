@@ -43,6 +43,13 @@ export function ChatPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [hasFetchedRooms, setHasFetchedRooms] = useState(false);
 
+  // selectedRoom이 변경될 때 NotificationProvider에 알림
+  useEffect(() => {
+    const roomId = selectedRoom?.id || null;
+    console.log('[ChatPage] Selected room changed, notifying NotificationProvider:', roomId);
+    window.dispatchEvent(new CustomEvent('currentRoomChanged', { detail: { roomId } }));
+  }, [selectedRoom]);
+
   // Fetch chat rooms and ensure personal space exists
   useEffect(() => {
     console.log('[ChatPage] useEffect dependency changed:', {
@@ -579,15 +586,35 @@ export function ChatPage() {
       }
     };
 
+    const handleMessageUpdated = (updatedMessage: Message) => {
+      if (updatedMessage.chatRoomId === selectedRoom?.id) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === updatedMessage.id ? updatedMessage : msg
+          )
+        );
+      }
+    };
+
+    const handleMessageDeleted = (data: { messageId: string; roomId: string }) => {
+      if (data.roomId === selectedRoom?.id) {
+        setMessages((prev) => prev.filter((msg) => msg.id !== data.messageId));
+      }
+    };
+
     socket.on('newMessage', handleNewMessage);
     socket.on('messageSent', handleNewMessage);
     socket.on('roomMessageUpdate', handleRoomMessageUpdate);
+    socket.on('messageUpdated', handleMessageUpdated);
+    socket.on('messageDeleted', handleMessageDeleted);
     socket.on('error', handleError);
 
     return () => {
       socket.off('newMessage', handleNewMessage);
       socket.off('messageSent', handleNewMessage);
       socket.off('roomMessageUpdate', handleRoomMessageUpdate);
+      socket.off('messageUpdated', handleMessageUpdated);
+      socket.off('messageDeleted', handleMessageDeleted);
       socket.off('error', handleError);
     };
   }, [socket, selectedRoom?.id, user?.id]);
@@ -887,6 +914,14 @@ export function ChatPage() {
               isLoadingMessages={isLoadingMessages}
               onMessageInputChange={setMessageInput}
               onSendMessage={handleSendMessage}
+              onMessageUpdate={(message) => {
+                setMessages((prev) =>
+                  prev.map((msg) => (msg.id === message.id ? message : msg))
+                );
+              }}
+              onMessageDelete={(messageId) => {
+                setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+              }}
             />
           ) : (
             <div className="chat-empty-state">

@@ -21,6 +21,8 @@ interface ChatAreaProps {
   canPromoteToAnnouncement?: boolean;
   announcementRoomId?: string;
   onPromoteToAnnouncement?: (message: Message) => void;
+  onMessageUpdate?: (message: Message) => void;
+  onMessageDelete?: (messageId: string) => void;
 }
 
 export function ChatArea({
@@ -37,6 +39,8 @@ export function ChatArea({
   canPromoteToAnnouncement = false,
   announcementRoomId,
   onPromoteToAnnouncement,
+  onMessageUpdate,
+  onMessageDelete,
 }: ChatAreaProps) {
   // Get the other user in DM (not the current user)
   const getOtherUser = () => {
@@ -121,6 +125,8 @@ export function ChatArea({
               isAnnouncementChannel={isAnnouncementChannel}
               canPromoteToAnnouncement={shouldShowPromoteAction}
               onPromoteToAnnouncement={shouldShowPromoteAction ? onPromoteToAnnouncement : undefined}
+              onMessageUpdate={onMessageUpdate}
+              onMessageDelete={onMessageDelete}
             />
           </div>
 

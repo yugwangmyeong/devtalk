@@ -122,6 +122,22 @@ export async function GET(request: NextRequest) {
         createdAt: 'desc',
       },
       take: limit,
+      select: {
+        id: true,
+        content: true,
+        userId: true,
+        chatRoomId: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            profileImageUrl: true,
+          },
+        },
+      },
     });
 
     // console.log('[API] Messages found:', {

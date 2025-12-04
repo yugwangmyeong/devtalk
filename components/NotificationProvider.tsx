@@ -19,13 +19,39 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
   const currentRoomIdRef = useRef<string | null>(null);
 
   // URL 변경 시 현재 방 ID 업데이트 (리스너 재등록 없이)
+  // 주로 이벤트로 업데이트되지만, URL도 보조적으로 확인
   useEffect(() => {
     if (pathname === '/chat') {
-      currentRoomIdRef.current = searchParams.get('roomId');
+      const roomIdFromUrl = searchParams.get('roomId');
+      // 이벤트로 받은 값이 없을 때만 URL에서 가져옴
+      if (!currentRoomIdRef.current && roomIdFromUrl) {
+        currentRoomIdRef.current = roomIdFromUrl;
+        console.log('[NotificationProvider] Current room ID updated from URL (chat):', roomIdFromUrl);
+      }
+    } else if (pathname === '/teams') {
+      // 팀 페이지는 이벤트로만 업데이트 (URL에 roomId가 없음)
+      // 이벤트가 없으면 null로 유지
+      console.log('[NotificationProvider] On teams page, room ID managed by events');
     } else {
+      // 다른 페이지에서는 방 ID 초기화
       currentRoomIdRef.current = null;
+      console.log('[NotificationProvider] Not on chat/teams page, clearing room ID');
     }
   }, [pathname, searchParams]);
+
+  // 전역 이벤트로 현재 방 ID 업데이트 (ChatPage에서 선택된 방이 변경될 때)
+  useEffect(() => {
+    const handleRoomChange = (event: CustomEvent<{ roomId: string | null }>) => {
+      const newRoomId = event.detail.roomId;
+      console.log('[NotificationProvider] Room changed via event:', newRoomId);
+      currentRoomIdRef.current = newRoomId;
+    };
+
+    window.addEventListener('currentRoomChanged', handleRoomChange as EventListener);
+    return () => {
+      window.removeEventListener('currentRoomChanged', handleRoomChange as EventListener);
+    };
+  }, []);
 
   // Load saved notifications from database when user is authenticated
   useEffect(() => {

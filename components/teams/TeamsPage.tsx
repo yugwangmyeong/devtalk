@@ -33,6 +33,13 @@ export function TeamsPage() {
   const isLoadingDMRef = useRef(false);
   const isPromotingAnnouncementRef = useRef(false);
   const isPersonalSpaceActiveRef = useRef(false);
+
+  // selectedRoom이 변경될 때 NotificationProvider에 알림
+  useEffect(() => {
+    const roomId = selectedRoom?.id || null;
+    console.log('[TeamsPage] Selected room changed, notifying NotificationProvider:', roomId);
+    window.dispatchEvent(new CustomEvent('currentRoomChanged', { detail: { roomId } }));
+  }, [selectedRoom]);
   const announcementChannel = useMemo(
     () => channels.find((channel) => channel.type === 'ANNOUNCEMENT'),
     [channels]
@@ -404,12 +411,32 @@ export function TeamsPage() {
       }
     };
 
+    const handleMessageUpdated = (updatedMessage: Message) => {
+      if (updatedMessage.chatRoomId === selectedRoom.id) {
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === updatedMessage.id ? updatedMessage : msg
+          )
+        );
+      }
+    };
+
+    const handleMessageDeleted = (data: { messageId: string; roomId: string }) => {
+      if (data.roomId === selectedRoom.id) {
+        setMessages((prev) => prev.filter((msg) => msg.id !== data.messageId));
+      }
+    };
+
     socket.on('newMessage', handleNewMessage);
     socket.on('messageSent', handleNewMessage);
+    socket.on('messageUpdated', handleMessageUpdated);
+    socket.on('messageDeleted', handleMessageDeleted);
 
     return () => {
       socket.off('newMessage', handleNewMessage);
       socket.off('messageSent', handleNewMessage);
+      socket.off('messageUpdated', handleMessageUpdated);
+      socket.off('messageDeleted', handleMessageDeleted);
       // Personal space가 아닐 때만 leaveRoom
       if (!selectedRoom.isPersonalSpace) {
         socket.emit('leaveRoom', { roomId: selectedRoom.id });
@@ -613,6 +640,14 @@ export function TeamsPage() {
                     }
                     announcementRoomId={announcementChannel?.chatRoomId}
                     onPromoteToAnnouncement={handlePromoteToAnnouncement}
+                    onMessageUpdate={(message) => {
+                      setMessages((prev) =>
+                        prev.map((msg) => (msg.id === message.id ? message : msg))
+                      );
+                    }}
+                    onMessageDelete={(messageId) => {
+                      setMessages((prev) => prev.filter((msg) => msg.id !== messageId));
+                    }}
                   />
                 ) : (
                   <div className="chat-empty-state">
