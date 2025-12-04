@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Message } from './types';
 import { getProfileImageUrl } from '@/lib/utils';
 
@@ -16,6 +16,10 @@ interface MessageItemProps {
   nextMessage?: Message | null;
   canPromoteToAnnouncement?: boolean;
   onPromoteToAnnouncement?: (message: Message) => void;
+  onMessageUpdate?: (message: Message) => void;
+  onMessageDelete?: (messageId: string) => void;
+  onMessageEditStart?: (message: Message) => void;
+  isBeingEdited?: boolean;
 }
 
 export function MessageItem({
@@ -30,76 +34,167 @@ export function MessageItem({
   nextMessage,
   canPromoteToAnnouncement,
   onPromoteToAnnouncement,
+  onMessageUpdate,
+  onMessageDelete,
+  onMessageEditStart,
+  isBeingEdited = false,
 }: MessageItemProps) {
-  const [showAnnouncementPrompt, setShowAnnouncementPrompt] = useState(false);
-  const [announcementPromptPlacement, setAnnouncementPromptPlacement] =
-    useState<'above' | 'below'>('below');
-  const announcementPromptRef = useRef<HTMLDivElement | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [showEditInput, setShowEditInput] = useState(false);
+  const [editContent, setEditContent] = useState(message.content);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number; placement: 'above' | 'below' } | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const editInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const messageContainerRef = useRef<HTMLDivElement | null>(null);
+  const menuButtonRef = useRef<HTMLButtonElement | null>(null);
 
-  const updateAnnouncementPromptPlacement = useCallback(() => {
-    if (!announcementPromptRef.current) {
-      return;
-    }
-    const rect = announcementPromptRef.current.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
-    const spaceAbove = rect.top;
-    const minSpace = 200;
-    if (spaceBelow < minSpace && spaceAbove > spaceBelow) {
-      setAnnouncementPromptPlacement('above');
-    } else {
-      setAnnouncementPromptPlacement('below');
-    }
-  }, []);
-
+  // ESC 키로 메뉴 닫기
   useEffect(() => {
-    if (!showAnnouncementPrompt) {
+    if (!showMenu) {
       return;
     }
 
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        announcementPromptRef.current &&
-        !announcementPromptRef.current.contains(event.target as Node)
-      ) {
-        setShowAnnouncementPrompt(false);
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowMenu(false);
+        setIsHovered(false);
+        setMenuPosition(null);
       }
     };
 
-    const handleResize = () => {
-      updateAnnouncementPromptPlacement();
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    window.addEventListener('resize', handleResize);
+    document.addEventListener('keydown', handleEscape);
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('keydown', handleEscape);
     };
-  }, [showAnnouncementPrompt, updateAnnouncementPromptPlacement]);
+  }, [showMenu]);
 
-  const handleAnnouncementPromptToggle = () => {
-    if (!canPromoteToAnnouncement || !onPromoteToAnnouncement) {
-      return;
+  // 수정 입력창 포커스
+  useEffect(() => {
+    if (showEditInput && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.setSelectionRange(
+        editInputRef.current.value.length,
+        editInputRef.current.value.length
+      );
     }
-    setShowAnnouncementPrompt((prev) => {
-      const next = !prev;
-      if (next) {
-        requestAnimationFrame(() => {
-          updateAnnouncementPromptPlacement();
-        });
-      }
-      return next;
-    });
-  };
+  }, [showEditInput]);
+
 
   const handlePromoteToAnnouncement = () => {
     if (!onPromoteToAnnouncement) {
       return;
     }
     onPromoteToAnnouncement(message);
-    setShowAnnouncementPrompt(false);
+    setShowMenu(false);
   };
+
+  // 메뉴 토글
+  const handleMenuToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (isOwnMessage || canPromoteToAnnouncement) {
+      if (menuButtonRef.current) {
+        const rect = menuButtonRef.current.getBoundingClientRect();
+        const viewportHeight = window.innerHeight;
+        const spaceBelow = viewportHeight - rect.bottom;
+        const spaceAbove = rect.top;
+        const menuHeight = 150; // 예상 메뉴 높이
+        
+        // 아래쪽 공간이 충분하면 아래로, 아니면 위로
+        const placement = spaceBelow >= menuHeight || spaceBelow > spaceAbove ? 'below' : 'above';
+        
+        setMenuPosition({
+          x: rect.right + 8, // 버튼 오른쪽에서 8px 떨어진 위치
+          y: placement === 'below' ? rect.top : rect.bottom,
+          placement,
+        });
+      }
+      setShowMenu((prev) => !prev);
+    }
+  };
+
+  // 메시지 수정
+  const handleEdit = async () => {
+    if (!editContent.trim() || editContent === message.content) {
+      setShowEditInput(false);
+      setEditContent(message.content);
+      return;
+    }
+
+    setIsEditing(true);
+    try {
+      const response = await fetch(`/api/chat/messages/${message.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ content: editContent.trim() }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (onMessageUpdate) {
+          onMessageUpdate(data.message);
+        }
+        setShowEditInput(false);
+        setShowMenu(false);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || '메시지 수정에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to update message:', error);
+      alert('메시지 수정에 실패했습니다.');
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  // 메시지 삭제
+  const handleDelete = async () => {
+    if (!confirm('정말 이 메시지를 삭제하시겠습니까?')) {
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/chat/messages/${message.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+
+      if (response.ok) {
+        if (onMessageDelete) {
+          onMessageDelete(message.id);
+        }
+        setShowMenu(false);
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || '메시지 삭제에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to delete message:', error);
+      alert('메시지 삭제에 실패했습니다.');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // 수정 취소
+  const handleCancelEdit = () => {
+    setShowEditInput(false);
+    setEditContent(message.content);
+    setShowMenu(false);
+  };
+
+  // 수정된 메시지인지 확인
+  const isEdited = message.updatedAt && 
+    new Date(message.updatedAt).getTime() > new Date(message.createdAt).getTime() + 1000; // 1초 이상 차이
   const formatTime = (dateString: string, prevMessageDate?: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -268,6 +363,7 @@ export function MessageItem({
 
   // 개인 DM인 경우와 워크스페이스 채널인 경우를 구분
   const isDM = roomType === 'DM';
+  const isChannel = !isDM && !isAnnouncementChannel;
 
   // 채널인 경우: 모든 메시지가 왼쪽에 프로필, 이름, 시간 표시
   // DM인 경우: 기존 디자인 (본인은 오른쪽, 상대방은 왼쪽)
@@ -329,27 +425,22 @@ export function MessageItem({
     }
 
     const shouldShowTimeInHeader = showSenderName && isWithinOneMinute;
-    const canShowAnnouncementAction = Boolean(
-      canPromoteToAnnouncement && onPromoteToAnnouncement
-    );
+    const messageTextClassName = 'chat-message-text';
 
-    const messageTextClassName = `chat-message-text${
-      canShowAnnouncementAction ? ' chat-message-text-actionable' : ''
-    }`;
-
-    const handleKeyDown = (event: React.KeyboardEvent) => {
-      if (event.key === 'Enter' || event.key === ' ') {
-        event.preventDefault();
-        handleAnnouncementPromptToggle();
-      }
-    };
-
-    const announcePromptClassName = `chat-message-announce-prompt${
-      announcementPromptPlacement === 'above' ? ' above' : ''
-    }`;
+    const hasMenuActions = isOwnMessage || canPromoteToAnnouncement;
 
     return (
-      <div className="chat-message chat-message-channel">
+      <div 
+        className="chat-message chat-message-channel"
+        ref={messageContainerRef}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => {
+          // 메뉴가 열려있으면 hover 상태 유지
+          if (!showMenu) {
+            setIsHovered(false);
+          }
+        }}
+      >
         {showAvatar ? (
           <div className="chat-message-avatar">
             <img
@@ -386,51 +477,134 @@ export function MessageItem({
             </div>
           )}
           <div className="chat-message-text-wrapper">
-            <div
-              className="chat-message-text-action-container"
-              ref={canShowAnnouncementAction ? announcementPromptRef : null}
-            >
-              <div
-                className={messageTextClassName}
-                role={canShowAnnouncementAction ? 'button' : undefined}
-                tabIndex={canShowAnnouncementAction ? 0 : undefined}
-                onClick={
-                  canShowAnnouncementAction
-                    ? handleAnnouncementPromptToggle
-                    : undefined
-                }
-                onKeyDown={
-                  canShowAnnouncementAction ? handleKeyDown : undefined
-                }
-                title={canShowAnnouncementAction ? '공지로 보내기' : undefined}
-                aria-label={
-                  canShowAnnouncementAction ? '공지로 보내기' : undefined
-                }
-              >
-                {message.content}
-              </div>
-              {canShowAnnouncementAction && showAnnouncementPrompt && (
-                <div className={announcePromptClassName}>
-                  <p className="chat-message-announce-text">
-                    이 메시지를 팀 공지 채널로 보낼까요?
-                  </p>
-                  <div className="chat-message-announce-actions">
+            <div className="chat-message-text-action-container">
+              {/* 채널인 경우 수정 입력창을 표시하지 않음 (MessageInput에서 처리) */}
+              {showEditInput && !isChannel ? (
+                <div className="chat-message-edit-container">
+                  <textarea
+                    ref={editInputRef}
+                    className="chat-message-edit-input"
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleEdit();
+                      } else if (e.key === 'Escape') {
+                        handleCancelEdit();
+                      }
+                    }}
+                    rows={Math.min(editContent.split('\n').length, 10)}
+                  />
+                  <div className="chat-message-edit-actions">
                     <button
                       type="button"
-                      className="chat-message-announce-button primary"
-                      onClick={handlePromoteToAnnouncement}
+                      className="chat-message-edit-button primary"
+                      onClick={handleEdit}
+                      disabled={isEditing || !editContent.trim() || editContent === message.content}
                     >
-                      공지로 보내기
+                      저장
                     </button>
                     <button
                       type="button"
-                      className="chat-message-announce-button"
-                      onClick={() => setShowAnnouncementPrompt(false)}
+                      className="chat-message-edit-button"
+                      onClick={handleCancelEdit}
+                      disabled={isEditing}
                     >
                       취소
                     </button>
                   </div>
                 </div>
+              ) : (
+                <>
+                  <div className="chat-message-text-content-wrapper">
+                    <div className={`${messageTextClassName} ${isBeingEdited ? 'chat-message-editing' : ''}`}>
+                      {message.content}
+                      {isEdited && (
+                        <span className="chat-message-edited"> (수정됨)</span>
+                      )}
+                    </div>
+                    {hasMenuActions && (
+                      <button
+                        ref={menuButtonRef}
+                        type="button"
+                        className={`chat-message-menu-button ${isHovered || showMenu ? 'visible' : ''}`}
+                        onClick={handleMenuToggle}
+                        aria-label="메시지 메뉴"
+                        title="메시지 옵션"
+                      >
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <circle cx="8" cy="4" r="1.5" fill="currentColor"/>
+                          <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+                          <circle cx="8" cy="12" r="1.5" fill="currentColor"/>
+                        </svg>
+                      </button>
+                    )}
+                  </div>
+                  {hasMenuActions && showMenu && menuPosition && (
+                    <>
+                      <div 
+                        className="chat-message-menu-backdrop"
+                        onClick={() => {
+                          setShowMenu(false);
+                          setMenuPosition(null);
+                        }}
+                      />
+                      <div 
+                        className={`chat-message-menu-overlay ${menuPosition.placement}`}
+                        ref={menuRef}
+                        style={{
+                          left: `${menuPosition.x}px`,
+                          top: menuPosition.placement === 'below' ? `${menuPosition.y}px` : 'auto',
+                          bottom: menuPosition.placement === 'above' ? `${window.innerHeight - menuPosition.y}px` : 'auto',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="chat-message-menu">
+                          {isOwnMessage && (
+                            <>
+                              <button
+                                type="button"
+                                className="chat-message-menu-item"
+                                onClick={() => {
+                                  // 채널인 경우 onMessageEditStart 호출, DM인 경우 기존 방식
+                                  if (isChannel && onMessageEditStart) {
+                                    onMessageEditStart(message);
+                                    setShowMenu(false);
+                                    setMenuPosition(null);
+                                  } else {
+                                    setShowEditInput(true);
+                                    setShowMenu(false);
+                                    setMenuPosition(null);
+                                  }
+                                }}
+                              >
+                                수정
+                              </button>
+                              <button
+                                type="button"
+                                className="chat-message-menu-item"
+                                onClick={handleDelete}
+                                disabled={isDeleting}
+                              >
+                                삭제
+                              </button>
+                            </>
+                          )}
+                          {canPromoteToAnnouncement && onPromoteToAnnouncement && (
+                            <button
+                              type="button"
+                              className="chat-message-menu-item"
+                              onClick={handlePromoteToAnnouncement}
+                            >
+                              공지로 보내기
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </>
               )}
             </div>
             {/* 이름 옆에 시간이 표시되지 않을 때만 메시지 옆에 시간 표시 */}
@@ -451,7 +625,17 @@ export function MessageItem({
   }`;
 
   return (
-    <div className={dmMessageClassName}>
+    <div 
+      className={dmMessageClassName}
+      ref={messageContainerRef}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => {
+        // 메뉴가 열려있으면 hover 상태 유지
+        if (!showMenu) {
+          setIsHovered(false);
+        }
+      }}
+    >
       {!isOwnMessage && (
         <>
           {showAvatar ? (
@@ -478,8 +662,114 @@ export function MessageItem({
               {formatTime(message.createdAt, previousMessage?.createdAt)}
             </div>
           )}
-          <div className="chat-message-text">
-            {message.content}
+          <div className="chat-message-text-action-container">
+            {showEditInput ? (
+              <div className="chat-message-edit-container">
+                <textarea
+                  ref={editInputRef}
+                  className="chat-message-edit-input"
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleEdit();
+                    } else if (e.key === 'Escape') {
+                      handleCancelEdit();
+                    }
+                  }}
+                  rows={Math.min(editContent.split('\n').length, 10)}
+                />
+                <div className="chat-message-edit-actions">
+                  <button
+                    type="button"
+                    className="chat-message-edit-button primary"
+                    onClick={handleEdit}
+                    disabled={isEditing || !editContent.trim() || editContent === message.content}
+                  >
+                    저장
+                  </button>
+                  <button
+                    type="button"
+                    className="chat-message-edit-button"
+                    onClick={handleCancelEdit}
+                    disabled={isEditing}
+                  >
+                    취소
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="chat-message-text-content-wrapper">
+                  <div className="chat-message-text">
+                    {message.content}
+                    {isEdited && (
+                      <span className="chat-message-edited"> (수정됨)</span>
+                    )}
+                  </div>
+                  {isOwnMessage && (
+                    <button
+                      ref={menuButtonRef}
+                      type="button"
+                      className={`chat-message-menu-button ${isHovered || showMenu ? 'visible' : ''}`}
+                      onClick={handleMenuToggle}
+                      aria-label="메시지 메뉴"
+                      title="메시지 옵션"
+                    >
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="8" cy="4" r="1.5" fill="currentColor"/>
+                        <circle cx="8" cy="8" r="1.5" fill="currentColor"/>
+                        <circle cx="8" cy="12" r="1.5" fill="currentColor"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
+                {isOwnMessage && showMenu && menuPosition && (
+                  <>
+                    <div 
+                      className="chat-message-menu-backdrop"
+                      onClick={() => {
+                        setShowMenu(false);
+                        setMenuPosition(null);
+                      }}
+                    />
+                    <div 
+                      className={`chat-message-menu-overlay ${menuPosition.placement}`}
+                      ref={menuRef}
+                      style={{
+                        left: `${menuPosition.x}px`,
+                        top: menuPosition.placement === 'below' ? `${menuPosition.y}px` : 'auto',
+                        bottom: menuPosition.placement === 'above' ? `${window.innerHeight - menuPosition.y}px` : 'auto',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="chat-message-menu">
+                        <button
+                          type="button"
+                          className="chat-message-menu-item"
+                          onClick={() => {
+                            setShowEditInput(true);
+                            setShowMenu(false);
+                            setMenuPosition(null);
+                          }}
+                        >
+                          수정
+                        </button>
+                        <button
+                          type="button"
+                          className="chat-message-menu-item"
+                          onClick={handleDelete}
+                          disabled={isDeleting}
+                        >
+                          삭제
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
           </div>
           {!isOwnMessage && showTime && (
             <div className="chat-message-time-separate">

@@ -12,7 +12,7 @@ interface PersonalChatNotificationsProps {
 }
 
 export function PersonalChatNotifications({ notifications }: PersonalChatNotificationsProps) {
-  const { markAsRead, removeNotification, closePanel } = useNotificationStore();
+  const { markAsRead, removeNotification, removeNotificationByFriendshipId, closePanel } = useNotificationStore();
   const router = useRouter();
 
   // 개인 채팅 알림만 필터링
@@ -56,8 +56,14 @@ export function PersonalChatNotifications({ notifications }: PersonalChatNotific
         });
 
         if (response.ok) {
-          markAsRead(notification.id);
-          removeNotification(notification.id);
+          // friendshipId로 알림 제거 (더 안전함)
+          if (notification.friendshipId) {
+            removeNotificationByFriendshipId(notification.friendshipId);
+          } else {
+            // fallback: ID로 제거
+            markAsRead(notification.id);
+            removeNotification(notification.id);
+          }
           window.dispatchEvent(new CustomEvent('friendsUpdated'));
         } else {
           const errorData = await response.json();
@@ -68,7 +74,7 @@ export function PersonalChatNotifications({ notifications }: PersonalChatNotific
         alert('친구 요청 수락에 실패했습니다.');
       }
     },
-    [markAsRead, removeNotification]
+    [markAsRead, removeNotification, removeNotificationByFriendshipId]
   );
 
   // 친구 요청 거절 핸들러
@@ -90,8 +96,14 @@ export function PersonalChatNotifications({ notifications }: PersonalChatNotific
         });
 
         if (response.ok) {
-          markAsRead(notification.id);
-          removeNotification(notification.id);
+          // friendshipId로 알림 제거 (더 안전함)
+          if (notification.friendshipId) {
+            removeNotificationByFriendshipId(notification.friendshipId);
+          } else {
+            // fallback: ID로 제거
+            markAsRead(notification.id);
+            removeNotification(notification.id);
+          }
           window.dispatchEvent(new CustomEvent('friendsUpdated'));
         } else {
           const errorData = await response.json();
@@ -102,7 +114,7 @@ export function PersonalChatNotifications({ notifications }: PersonalChatNotific
         alert('친구 요청 거절에 실패했습니다.');
       }
     },
-    [markAsRead, removeNotification]
+    [markAsRead, removeNotification, removeNotificationByFriendshipId]
   );
 
   if (personalNotifications.length === 0) {

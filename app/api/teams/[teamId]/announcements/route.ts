@@ -159,10 +159,34 @@ export async function POST(
       io.to(announcementChannel.chatRoomId).emit('newMessage', messagePayload);
       io.to(announcementChannel.chatRoomId).emit('messageSent', messagePayload);
 
+      // 공지 채널의 모든 멤버를 가져오되, 팀의 모든 ACCEPTED 멤버도 포함
       const roomMembers = await prisma.chatRoomMember.findMany({
         where: { chatRoomId: announcementChannel.chatRoomId },
         select: { userId: true },
       });
+
+      // 팀의 모든 ACCEPTED 멤버 가져오기 (공지 채널 멤버가 아닐 수도 있음)
+      const teamMembers = await prisma.teamMember.findMany({
+        where: {
+          teamId,
+          status: 'ACCEPTED',
+        },
+        select: { userId: true },
+      });
+
+      // 공지 채널 멤버에 없는 팀 멤버를 공지 채널에 추가
+      const roomMemberUserIds = new Set(roomMembers.map((m) => m.userId));
+      const newMembers = teamMembers.filter((tm) => !roomMemberUserIds.has(tm.userId));
+      
+      if (newMembers.length > 0) {
+        await prisma.chatRoomMember.createMany({
+          data: newMembers.map(({ userId }) => ({
+            userId,
+            chatRoomId: announcementChannel.chatRoomId,
+          })),
+          skipDuplicates: true,
+        });
+      }
 
       const roomMessageUpdate = {
         roomId: announcementChannel.chatRoomId,
@@ -180,10 +204,11 @@ export async function POST(
         updatedAt: new Date().toISOString(),
       };
 
-      const memberUserIds = roomMembers.map((member) => member.userId);
+      // 팀의 모든 ACCEPTED 멤버에게 알림 전송
+      const allTeamMemberUserIds = teamMembers.map((tm) => tm.userId);
       io.sockets.sockets.forEach((socket) => {
         const authenticatedSocket = socket as typeof socket & { userId?: string };
-        if (authenticatedSocket.userId && memberUserIds.includes(authenticatedSocket.userId)) {
+        if (authenticatedSocket.userId && allTeamMemberUserIds.includes(authenticatedSocket.userId)) {
           socket.emit('roomMessageUpdate', roomMessageUpdate);
         }
       });

@@ -19,13 +19,39 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
   const currentRoomIdRef = useRef<string | null>(null);
 
   // URL 변경 시 현재 방 ID 업데이트 (리스너 재등록 없이)
+  // 주로 이벤트로 업데이트되지만, URL도 보조적으로 확인
   useEffect(() => {
     if (pathname === '/chat') {
-      currentRoomIdRef.current = searchParams.get('roomId');
+      const roomIdFromUrl = searchParams.get('roomId');
+      // 이벤트로 받은 값이 없을 때만 URL에서 가져옴
+      if (!currentRoomIdRef.current && roomIdFromUrl) {
+        currentRoomIdRef.current = roomIdFromUrl;
+        console.log('[NotificationProvider] Current room ID updated from URL (chat):', roomIdFromUrl);
+      }
+    } else if (pathname === '/teams') {
+      // 팀 페이지는 이벤트로만 업데이트 (URL에 roomId가 없음)
+      // 이벤트가 없으면 null로 유지
+      console.log('[NotificationProvider] On teams page, room ID managed by events');
     } else {
+      // 다른 페이지에서는 방 ID 초기화
       currentRoomIdRef.current = null;
+      console.log('[NotificationProvider] Not on chat/teams page, clearing room ID');
     }
   }, [pathname, searchParams]);
+
+  // 전역 이벤트로 현재 방 ID 업데이트 (ChatPage에서 선택된 방이 변경될 때)
+  useEffect(() => {
+    const handleRoomChange = (event: CustomEvent<{ roomId: string | null }>) => {
+      const newRoomId = event.detail.roomId;
+      console.log('[NotificationProvider] Room changed via event:', newRoomId);
+      currentRoomIdRef.current = newRoomId;
+    };
+
+    window.addEventListener('currentRoomChanged', handleRoomChange as EventListener);
+    return () => {
+      window.removeEventListener('currentRoomChanged', handleRoomChange as EventListener);
+    };
+  }, []);
 
   // Load saved notifications from database when user is authenticated
   useEffect(() => {
@@ -61,23 +87,28 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
 
   // 전역 알림 리스너 설정 (한 번만 등록)
   useEffect(() => {
-    // console.log('[NotificationProvider] useEffect triggered:', {
-    //   hasSocket: !!socket,
-    //   isConnected,
-    //   isAuthenticated,
-    //   hasUser: !!user,
-    //   userId: user?.id,
-    // });
+    console.log('[NotificationProvider] useEffect triggered:', {
+      hasSocket: !!socket,
+      isConnected,
+      isAuthenticated,
+      hasUser: !!user,
+      userId: user?.id,
+    });
 
     if (!socket || !isConnected || !isAuthenticated || !user) {
-      // console.log('[NotificationProvider] Missing requirements, not setting up listeners');
+      console.log('[NotificationProvider] Missing requirements, not setting up listeners', {
+        hasSocket: !!socket,
+        isConnected,
+        isAuthenticated,
+        hasUser: !!user,
+      });
       return;
     }
 
-    // console.log('[NotificationProvider] Setting up global notification listener', {
-    //   socketId: socket.id,
-    //   userId: user.id,
-    // });
+    console.log('[NotificationProvider] Setting up global notification listener', {
+      socketId: socket.id,
+      userId: user.id,
+    });
 
     const handleRoomMessageUpdate = (data: {
       roomId: string;
@@ -98,20 +129,19 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
       const isOwnMessage = data.lastMessage.user.id === user.id;
       const isCurrentRoom = data.roomId === currentRoomId;
 
-      // console.log('[NotificationProvider] roomMessageUpdate received:', {
-      //   roomId: data.roomId,
-      //   currentRoomId,
-      //   isOwnMessage,
-      //   isCurrentRoom,
-      //   shouldNotify: !isOwnMessage && !isCurrentRoom,
-      //   userProfileImageUrl: data.lastMessage.user.profileImageUrl,
-      //   userData: data.lastMessage.user,
-      //   hasProfileImageUrl: 'profileImageUrl' in data.lastMessage.user,
-      //   userKeys: Object.keys(data.lastMessage.user),
-      // });
+      console.log('[NotificationProvider] roomMessageUpdate received:', {
+        roomId: data.roomId,
+        currentRoomId,
+        isOwnMessage,
+        isCurrentRoom,
+        shouldNotify: !isOwnMessage && !isCurrentRoom,
+        userId: user.id,
+        messageUserId: data.lastMessage.user.id,
+      });
 
       // 알림 조건: 본인 메시지가 아니고, 현재 보고 있는 방이 아닐 때
       if (!isOwnMessage && !isCurrentRoom) {
+        console.log('[NotificationProvider] Creating notification for message');
         // 채팅방 정보와 워크스페이스 정보를 알림 생성 시점에 동적으로 가져오기
         const getRoomInfo = async (roomId: string): Promise<{ teamName: string; roomName: string; teamId?: string; channelId?: string }> => {
           try {
@@ -310,18 +340,27 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
 
           addNotification(notificationData);
 
-          // console.log('[NotificationProvider] Notification added:', {
-          //   notificationId: `msg-${data.lastMessage.id}`,
-          //   teamId: notificationData.teamId,
-          //   channelId: notificationData.channelId,
-          //   hasTeamId: !!notificationData.teamId,
-          //   hasChannelId: !!notificationData.channelId,
-          // });
+          console.log('[NotificationProvider] Notification added:', {
+            notificationId: `msg-${data.lastMessage.id}`,
+            teamId: notificationData.teamId,
+            channelId: notificationData.channelId,
+            hasTeamId: !!notificationData.teamId,
+            hasChannelId: !!notificationData.channelId,
+          });
+        }).catch((error) => {
+          console.error('[NotificationProvider] Error creating notification:', error);
+        });
+      } else {
+        console.log('[NotificationProvider] Skipping notification:', {
+          isOwnMessage,
+          isCurrentRoom,
+          roomId: data.roomId,
         });
       }
     };
 
     socket.on('roomMessageUpdate', handleRoomMessageUpdate);
+    console.log('[NotificationProvider] roomMessageUpdate listener registered');
 
     // Handle team invitation notifications
     const handleNotification = (data: {
@@ -342,25 +381,25 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
       };
       [key: string]: unknown; // 추가 속성 허용
     }) => {
-      // console.log('[NotificationProvider] ========== NOTIFICATION RECEIVED ==========');
-      // console.log('[NotificationProvider] Notification received:', {
-      //   id: data.id,
-      //   type: data.type,
-      //   title: data.title,
-      //   message: data.message,
-      //   friendshipId: data.friendshipId,
-      //   teamId: data.teamId,
-      //   hasUser: !!data.user,
-      //   user: data.user,
-      //   // 전체 데이터 확인
-      //   allKeys: Object.keys(data),
-      //   rawData: JSON.stringify(data, null, 2),
-      // });
-      // console.log('[NotificationProvider] ===========================================');
+      console.log('[NotificationProvider] ========== NOTIFICATION RECEIVED ==========');
+      console.log('[NotificationProvider] Notification received:', {
+        id: data.id,
+        type: data.type,
+        title: data.title,
+        message: data.message,
+        friendshipId: data.friendshipId,
+        teamId: data.teamId,
+        hasUser: !!data.user,
+        user: data.user,
+        // 전체 데이터 확인
+        allKeys: Object.keys(data),
+        rawData: JSON.stringify(data, null, 2),
+      });
+      console.log('[NotificationProvider] ===========================================');
 
       // Handle team_invite and friend_request notifications
       if (data.type === 'team_invite') {
-        // console.log('[NotificationProvider] Adding team_invite notification');
+        console.log('[NotificationProvider] Adding team_invite notification');
         addNotification({
           id: data.id,
           type: 'team_invite',
@@ -430,11 +469,12 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
     };
 
     socket.on('notification', handleNotification);
+    console.log('[NotificationProvider] notification listener registered');
 
-    // console.log('[NotificationProvider] Socket listeners registered');
+    console.log('[NotificationProvider] Socket listeners registered');
 
     return () => {
-      // console.log('[NotificationProvider] Cleaning up notification listeners');
+      console.log('[NotificationProvider] Cleaning up notification listeners');
       socket.off('roomMessageUpdate', handleRoomMessageUpdate);
       socket.off('notification', handleNotification);
     };

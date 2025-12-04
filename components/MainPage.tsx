@@ -12,6 +12,7 @@ import './MainPage.css';
 interface DashboardData {
   upcomingEvents: any[];
   teamActivities: any[];
+  announcements: any[];
 }
 
 export function MainPage() {
@@ -20,6 +21,7 @@ export function MainPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData>({
     upcomingEvents: [],
     teamActivities: [],
+    announcements: [],
   });
   const [isLoading, setIsLoading] = useState(true);
 
@@ -41,6 +43,7 @@ export function MainPage() {
           setDashboardData({
             upcomingEvents: data.upcomingEvents || [],
             teamActivities: data.teamActivities || [],
+            announcements: data.announcements || [],
           });
         } else {
           console.error('Failed to fetch dashboard data');
@@ -63,7 +66,10 @@ export function MainPage() {
             {/* Dashboard Sections */}
             <div className="dashboard-container">
               {/* Top Section - Tasks/Announcements */}
-              <TasksAnnouncementsSection />
+              <TasksAnnouncementsSection 
+                announcements={dashboardData.announcements}
+                isLoading={isLoading}
+              />
 
               {/* Bottom Row - Two Cards */}
               <div className="dashboard-grid">

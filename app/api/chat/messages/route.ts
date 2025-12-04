@@ -108,7 +108,17 @@ export async function GET(request: NextRequest) {
 
     const messages = await prisma.message.findMany({
       where: whereClause,
-      include: {
+      orderBy: {
+        createdAt: 'desc',
+      },
+      take: limit,
+      select: {
+        id: true,
+        content: true,
+        userId: true,
+        chatRoomId: true,
+        createdAt: true,
+        updatedAt: true,
         user: {
           select: {
             id: true,
@@ -118,10 +128,6 @@ export async function GET(request: NextRequest) {
           },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: limit,
     });
 
     // console.log('[API] Messages found:', {
