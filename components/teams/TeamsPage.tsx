@@ -411,8 +411,31 @@ export function TeamsPage() {
       }
     };
 
-    const handleMessageUpdated = (updatedMessage: Message) => {
-      if (updatedMessage.chatRoomId === selectedRoom.id) {
+    const handleMessageUpdated = (data: {
+      id: string;
+      content: string;
+      userId: string;
+      chatRoomId: string;
+      createdAt: Date | string;
+      updatedAt: Date | string;
+      user: {
+        id: string;
+        email: string;
+        name: string | null;
+        profileImageUrl: string | null;
+        teamRole?: 'OWNER' | 'ADMIN' | 'MEMBER' | null;
+      };
+    }) => {
+      if (data.chatRoomId === selectedRoom.id) {
+        const updatedMessage: Message = {
+          id: data.id,
+          content: data.content,
+          userId: data.userId,
+          chatRoomId: data.chatRoomId,
+          createdAt: typeof data.createdAt === 'string' ? data.createdAt : data.createdAt.toISOString(),
+          updatedAt: typeof data.updatedAt === 'string' ? data.updatedAt : data.updatedAt.toISOString(),
+          user: data.user,
+        };
         setMessages((prev) =>
           prev.map((msg) =>
             msg.id === updatedMessage.id ? updatedMessage : msg
