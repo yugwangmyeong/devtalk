@@ -18,6 +18,8 @@ interface MessageItemProps {
   onPromoteToAnnouncement?: (message: Message) => void;
   onMessageUpdate?: (message: Message) => void;
   onMessageDelete?: (messageId: string) => void;
+  onMessageEditStart?: (message: Message) => void;
+  isBeingEdited?: boolean;
 }
 
 export function MessageItem({
@@ -34,6 +36,8 @@ export function MessageItem({
   onPromoteToAnnouncement,
   onMessageUpdate,
   onMessageDelete,
+  onMessageEditStart,
+  isBeingEdited = false,
 }: MessageItemProps) {
   const [showMenu, setShowMenu] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -359,6 +363,7 @@ export function MessageItem({
 
   // 개인 DM인 경우와 워크스페이스 채널인 경우를 구분
   const isDM = roomType === 'DM';
+  const isChannel = !isDM && !isAnnouncementChannel;
 
   // 채널인 경우: 모든 메시지가 왼쪽에 프로필, 이름, 시간 표시
   // DM인 경우: 기존 디자인 (본인은 오른쪽, 상대방은 왼쪽)
@@ -473,7 +478,8 @@ export function MessageItem({
           )}
           <div className="chat-message-text-wrapper">
             <div className="chat-message-text-action-container">
-              {showEditInput ? (
+              {/* 채널인 경우 수정 입력창을 표시하지 않음 (MessageInput에서 처리) */}
+              {showEditInput && !isChannel ? (
                 <div className="chat-message-edit-container">
                   <textarea
                     ref={editInputRef}
@@ -512,7 +518,7 @@ export function MessageItem({
               ) : (
                 <>
                   <div className="chat-message-text-content-wrapper">
-                    <div className={messageTextClassName}>
+                    <div className={`${messageTextClassName} ${isBeingEdited ? 'chat-message-editing' : ''}`}>
                       {message.content}
                       {isEdited && (
                         <span className="chat-message-edited"> (수정됨)</span>
@@ -561,9 +567,16 @@ export function MessageItem({
                                 type="button"
                                 className="chat-message-menu-item"
                                 onClick={() => {
-                                  setShowEditInput(true);
-                                  setShowMenu(false);
-                                  setMenuPosition(null);
+                                  // 채널인 경우 onMessageEditStart 호출, DM인 경우 기존 방식
+                                  if (isChannel && onMessageEditStart) {
+                                    onMessageEditStart(message);
+                                    setShowMenu(false);
+                                    setMenuPosition(null);
+                                  } else {
+                                    setShowEditInput(true);
+                                    setShowMenu(false);
+                                    setMenuPosition(null);
+                                  }
                                 }}
                               >
                                 수정

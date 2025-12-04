@@ -16,6 +16,8 @@ interface MessagesListProps {
   onPromoteToAnnouncement?: (message: Message) => void;
   onMessageUpdate?: (message: Message) => void;
   onMessageDelete?: (messageId: string) => void;
+  onMessageEditStart?: (message: Message) => void;
+  editingMessageId?: string | null;
 }
 
 export function MessagesList({
@@ -30,6 +32,8 @@ export function MessagesList({
   onPromoteToAnnouncement,
   onMessageUpdate,
   onMessageDelete,
+  onMessageEditStart,
+  editingMessageId,
 }: MessagesListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
@@ -206,6 +210,8 @@ export function MessagesList({
                 onPromoteToAnnouncement={canPromoteToAnnouncement ? onPromoteToAnnouncement : undefined}
                 onMessageUpdate={onMessageUpdate}
                 onMessageDelete={onMessageDelete}
+                onMessageEditStart={onMessageEditStart}
+                isBeingEdited={editingMessageId === message.id}
               />
             </Fragment>
           );

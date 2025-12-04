@@ -68,6 +68,7 @@ export function ChatArea({
     : null;
 
   const [isSearchPanelOpen, setIsSearchPanelOpen] = useState(false);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
 
   console.log('[ChatArea] Rendering with room type:', room.type, 'room name:', room.name, 'isPersonalSpace:', room.isPersonalSpace);
   
@@ -81,6 +82,54 @@ export function ChatArea({
     );
 
   const isInputDisabled = isAnnouncementChannel && !canPostAnnouncements;
+
+  // 팀 워크스페이스 채널인지 확인 (DM이 아닌 경우)
+  const isTeamWorkspaceChannel = room.type !== 'DM' && !room.isPersonalSpace;
+
+  // 메시지 수정 시작 (채널인 경우만)
+  const handleMessageEditStart = (message: Message) => {
+    if (isTeamWorkspaceChannel) {
+      setEditingMessage(message);
+      onMessageInputChange(message.content);
+    }
+  };
+
+  // 메시지 수정 취소
+  const handleMessageEditCancel = () => {
+    setEditingMessage(null);
+    onMessageInputChange('');
+  };
+
+  // 메시지 수정 완료
+  const handleMessageEditSave = async (content: string) => {
+    if (!editingMessage) return;
+
+    try {
+      const response = await fetch(`/api/chat/messages/${editingMessage.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ content: content.trim() }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (onMessageUpdate) {
+          onMessageUpdate(data.message);
+        }
+        setEditingMessage(null);
+        onMessageInputChange('');
+      } else {
+        const errorData = await response.json();
+        alert(errorData.error || '메시지 수정에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Failed to update message:', error);
+      alert('메시지 수정에 실패했습니다.');
+    }
+  };
 
   return (
     <div className="chat-area-container">
@@ -127,6 +176,8 @@ export function ChatArea({
               onPromoteToAnnouncement={shouldShowPromoteAction ? onPromoteToAnnouncement : undefined}
               onMessageUpdate={onMessageUpdate}
               onMessageDelete={onMessageDelete}
+              onMessageEditStart={isTeamWorkspaceChannel ? handleMessageEditStart : undefined}
+              editingMessageId={editingMessage?.id}
             />
           </div>
 
@@ -158,8 +209,10 @@ export function ChatArea({
         <MessageInput
           value={messageInput}
           onChange={onMessageInputChange}
-          onSend={onSendMessage}
+          onSend={editingMessage ? () => handleMessageEditSave(messageInput) : onSendMessage}
           disabled={isInputDisabled}
+          editingMessage={editingMessage}
+          onCancelEdit={handleMessageEditCancel}
         />
       </div>
     </div>
