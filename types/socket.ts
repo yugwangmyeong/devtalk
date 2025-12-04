@@ -83,6 +83,7 @@ export interface ServerToClientEvents {
     };
   }) => void;
   friendsUpdated: () => void;
+  teamsUpdated: () => void;
   error: (data: { message: string }) => void;
 }
 
