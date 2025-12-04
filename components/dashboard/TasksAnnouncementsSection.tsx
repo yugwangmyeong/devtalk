@@ -108,11 +108,6 @@ export function TasksAnnouncementsSection({
                           <>
                             <span className="dashboard-announcement-separator">•</span>
                             <span className="dashboard-announcement-team">
-                              {announcement.team.iconUrl && (
-                                <span className="dashboard-announcement-team-icon">
-                                  {announcement.team.iconUrl}
-                                </span>
-                              )}
                               {announcement.team.name}
                             </span>
                           </>
