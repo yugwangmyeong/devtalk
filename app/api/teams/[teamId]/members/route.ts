@@ -128,7 +128,10 @@ export async function POST(
       inviterId: decoded.userId,
     });
 
+    console.log('[POST /api/teams/[teamId]/members] Starting team member invitation process...');
+
     // Check if user is OWNER or ADMIN of the team (must be ACCEPTED)
+    console.log('[POST /api/teams/[teamId]/members] Checking inviter permissions...');
     const teamMember = await prisma.teamMember.findUnique({
       where: {
         userId_teamId: {
@@ -139,6 +142,7 @@ export async function POST(
     });
 
     if (!teamMember || teamMember.status !== 'ACCEPTED') {
+      console.log('[POST /api/teams/[teamId]/members] Inviter is not an accepted member');
       return NextResponse.json(
         { error: '팀 멤버가 아닙니다. 초대를 수락해야 멤버를 초대할 수 있습니다.' },
         { status: 403 }
@@ -146,28 +150,35 @@ export async function POST(
     }
 
     if (teamMember.role !== 'OWNER' && teamMember.role !== 'ADMIN') {
+      console.log('[POST /api/teams/[teamId]/members] Inviter does not have permission (role:', teamMember.role, ')');
       return NextResponse.json(
         { error: '멤버를 초대할 권한이 없습니다. OWNER 또는 ADMIN만 초대할 수 있습니다.' },
         { status: 403 }
       );
     }
+    console.log('[POST /api/teams/[teamId]/members] Inviter has permission (role:', teamMember.role, ')');
 
     // Find user by userId, email, or name
+    console.log('[POST /api/teams/[teamId]/members] Finding user to invite...');
     let userToInvite;
     if (userId) {
+      console.log('[POST /api/teams/[teamId]/members] Looking up user by userId:', userId);
       userToInvite = await prisma.user.findUnique({
         where: { id: userId },
       });
     } else if (email) {
+      console.log('[POST /api/teams/[teamId]/members] Looking up user by email:', email);
       userToInvite = await prisma.user.findUnique({
         where: { email: email.trim() },
       });
     } else if (name) {
+      console.log('[POST /api/teams/[teamId]/members] Looking up user by name:', name);
       // name은 unique가 아니므로 findFirst 사용
       userToInvite = await prisma.user.findFirst({
         where: { name: name.trim() },
       });
     } else {
+      console.log('[POST /api/teams/[teamId]/members] No userId, email, or name provided');
       return NextResponse.json(
         { error: '사용자 ID, 이메일 또는 이름이 필요합니다.' },
         { status: 400 }
@@ -175,11 +186,13 @@ export async function POST(
     }
 
     if (!userToInvite) {
+      console.log('[POST /api/teams/[teamId]/members] User not found');
       return NextResponse.json(
         { error: '사용자를 찾을 수 없습니다.' },
         { status: 404 }
       );
     }
+    console.log('[POST /api/teams/[teamId]/members] User found:', { id: userToInvite.id, email: userToInvite.email, name: userToInvite.name });
 
     // Check if user is already a member or has pending invitation
     const existingMember = await prisma.teamMember.findUnique({
@@ -252,6 +265,7 @@ export async function POST(
     console.log(`[Team Invite] Created pending invitation for user ${userToInvite.id} to team ${teamId}`);
 
     // Get inviter info
+    console.log(`[Team Invite] Fetching inviter info for user ${decoded.userId}...`);
     const inviter = await prisma.user.findUnique({
       where: { id: decoded.userId },
       select: {
@@ -261,6 +275,7 @@ export async function POST(
         profileImageUrl: true,
       },
     });
+    console.log(`[Team Invite] Inviter info:`, inviter ? { id: inviter.id, name: inviter.name, email: inviter.email } : 'null');
 
     // Return member info
     const memberResponse = {
@@ -274,14 +289,23 @@ export async function POST(
 
     // Send notification via Socket.IO
     console.log('[Team Invite] Getting Socket.IO instance...');
-    const io = getIO();
-    console.log('[Team Invite] Socket.IO instance:', {
-      hasIO: !!io,
-      hasInviter: !!inviter,
-      ioType: io ? typeof io : 'null',
-    });
-    
-    if (io && inviter) {
+    try {
+      const io = getIO();
+      console.log('[Team Invite] Socket.IO instance:', {
+        hasIO: !!io,
+        hasInviter: !!inviter,
+        ioType: io ? typeof io : 'null',
+      });
+      
+      if (!io) {
+        console.error('[Team Invite] Socket.IO instance is null or undefined');
+      }
+      
+      if (!inviter) {
+        console.error('[Team Invite] Inviter is null or undefined');
+      }
+      
+      if (io && inviter) {
       const notification = {
         id: `team_invite_${team.id}_${userToInvite.id}_${Date.now()}`,
         type: 'team_invite',
@@ -312,14 +336,18 @@ export async function POST(
       io.to(userToInvite.id).emit('notification', notification);
       console.log(`[Team Invite] Notification emitted to user room: ${userToInvite.id}`);
       
-      // Also log total connected sockets for debugging
-      const totalSockets = io.sockets.sockets.size;
-      console.log(`[Team Invite] Total connected sockets: ${totalSockets}`);
-    } else {
-      console.log(`[Team Invite] Socket.IO not available or inviter missing`, {
-        hasIO: !!io,
-        hasInviter: !!inviter,
-      });
+        // Also log total connected sockets for debugging
+        const totalSockets = io.sockets.sockets.size;
+        console.log(`[Team Invite] Total connected sockets: ${totalSockets}`);
+      } else {
+        console.warn(`[Team Invite] Socket.IO not available or inviter missing`, {
+          hasIO: !!io,
+          hasInviter: !!inviter,
+        });
+      }
+    } catch (notificationError) {
+      console.error('[Team Invite] Error sending notification:', notificationError);
+      // 알림 전송 실패해도 초대는 성공 처리
     }
 
     return NextResponse.json(

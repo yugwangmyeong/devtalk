@@ -304,3 +304,133 @@
   color: rgba(255, 255, 255, 0.45);
 }
 
+/* Announcements List */
+.dashboard-announcements-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard-announcement-item {
+  padding: 18px 20px;
+  border-radius: 16px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: transform 0.2s, background 0.2s, box-shadow 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.dashboard-announcement-item:hover {
+  transform: translateY(-2px);
+  background: rgba(15, 23, 42, 0.6);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.dashboard-announcement-header {
+  margin-bottom: 12px;
+}
+
+.dashboard-announcement-meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.dashboard-announcement-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: #fbbf24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.15), rgba(245, 158, 11, 0.15));
+  border: 1px solid rgba(251, 191, 36, 0.2);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+.dashboard-announcement-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dashboard-announcement-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.dashboard-announcement-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.dashboard-announcement-avatar--default {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3b82f6, #7c3aed);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+}
+
+.dashboard-announcement-author-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.dashboard-announcement-separator {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 12px;
+}
+
+.dashboard-announcement-team {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.dashboard-announcement-team-icon {
+  font-size: 14px;
+}
+
+.dashboard-announcement-time {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 2px;
+}
+
+.dashboard-announcement-content {
+  margin-top: 12px;
+  padding-left: 32px;
+}
+
+.dashboard-announcement-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0 8px 0;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.dashboard-announcement-text:last-child {
+  margin-bottom: 0;
+}
+

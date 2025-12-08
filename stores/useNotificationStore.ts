@@ -9,6 +9,7 @@ interface NotificationState {
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   removeNotification: (id: string) => void;
+  removeNotificationByFriendshipId: (friendshipId: string) => void;
   clearAll: () => void;
   togglePanel: () => void;
   openPanel: () => void;
@@ -29,17 +30,17 @@ export const useNotificationStore = create<NotificationState>((set) => ({
       hasFriendshipId: !!notification.friendshipId,
     });
     set((state) => {
-      // 중복 체크: 같은 ID의 알림이 이미 있으면 추가하지 않음
+      
       const existingNotification = state.notifications.find((n) => n.id === notification.id);
       if (existingNotification) {
         console.log('[NotificationStore] Duplicate notification, skipping:', notification.id);
         return state;
       }
 
-      // 새 알림 추가 (최대 개수 제한) - friendshipId를 명시적으로 포함
+     
       const notificationToAdd: Notification = {
         ...notification,
-        friendshipId: notification.friendshipId, // 명시적으로 포함
+        friendshipId: notification.friendshipId,
       };
       const newNotifications = [notificationToAdd, ...state.notifications].slice(0, MAX_NOTIFICATIONS);
       
@@ -82,13 +83,51 @@ export const useNotificationStore = create<NotificationState>((set) => ({
   },
 
   removeNotification: (id: string) => {
+    console.log('[NotificationStore] removeNotification called:', id);
     set((state) => {
       const notification = state.notifications.find((n) => n.id === id);
       const wasUnread = notification && !notification.read;
 
+      const filtered = state.notifications.filter((n) => n.id !== id);
+      console.log('[NotificationStore] Notification removed:', {
+        id,
+        found: !!notification,
+        wasUnread,
+        beforeCount: state.notifications.length,
+        afterCount: filtered.length,
+      });
+
       return {
-        notifications: state.notifications.filter((n) => n.id !== id),
+        notifications: filtered,
         unreadCount: wasUnread ? Math.max(0, state.unreadCount - 1) : state.unreadCount,
+      };
+    });
+  },
+  
+  removeNotificationByFriendshipId: (friendshipId: string) => {
+    console.log('[NotificationStore] removeNotificationByFriendshipId called:', friendshipId);
+    set((state) => {
+      const notificationsToRemove = state.notifications.filter(
+        (n) => n.friendshipId === friendshipId
+      );
+      const wasUnread = notificationsToRemove.some((n) => !n.read);
+
+      const filtered = state.notifications.filter(
+        (n) => n.friendshipId !== friendshipId
+      );
+      console.log('[NotificationStore] Notifications removed by friendshipId:', {
+        friendshipId,
+        removedCount: notificationsToRemove.length,
+        wasUnread,
+        beforeCount: state.notifications.length,
+        afterCount: filtered.length,
+      });
+
+      return {
+        notifications: filtered,
+        unreadCount: wasUnread
+          ? Math.max(0, state.unreadCount - notificationsToRemove.filter((n) => !n.read).length)
+          : state.unreadCount,
       };
     });
   },

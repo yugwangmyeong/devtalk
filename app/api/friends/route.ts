@@ -265,33 +265,45 @@ export async function POST(request: NextRequest) {
     });
 
     // Save notification to database (항상 저장)
-    const notification = await prisma.notification.create({
-      data: {
-        userId: userId,
-        type: 'FRIEND_REQUEST',
-        title: '친구 요청',
-        message: `${friendship.requester.name || friendship.requester.email}님이 친구 요청을 보냈습니다.`,
-        friendshipId: friendship.id,
-        senderId: friendship.requester.id,
-        read: false,
-      },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            profileImageUrl: true,
+    const requesterName = friendship.requester.name || friendship.requester.email || '알 수 없는 사용자';
+    let notification;
+    try {
+      notification = await prisma.notification.create({
+        data: {
+          userId: userId,
+          type: 'FRIEND_REQUEST',
+          title: '친구 요청',
+          message: `${requesterName}님이 친구 요청을 보냈습니다.`,
+          friendshipId: friendship.id,
+          senderId: friendship.requester.id,
+          read: false,
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              profileImageUrl: true,
+            },
           },
         },
-      },
-    });
+      });
+    } catch (notificationError: any) {
+      // 테이블이 없는 경우 등 알림 저장 실패 시에도 친구 요청은 성공 처리
+      console.error('[API /api/friends] Failed to create notification:', notificationError);
+      if (notificationError?.code === 'P2021') {
+        console.warn('[API /api/friends] Notifications table does not exist. Please run: npx prisma db push');
+      }
+      // 알림 없이 계속 진행 (친구 요청은 성공)
+      notification = null;
+    }
 
     // console.log('[API /api/friends] Notification saved to database:', notification.id);
 
     // Send notification to the addressee via socket (if online)
     const io = getIO();
-    if (io) {
+    if (io && notification) {
       // Check if user is in the room before sending
       const userRoom = io.sockets.adapter.rooms.get(userId);
       const isUserOnline = !!userRoom && userRoom.size > 0;
@@ -343,8 +355,16 @@ export async function POST(request: NextRequest) {
     );
   } catch (error) {
     console.error('Send friend request error:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    });
     return NextResponse.json(
-      { error: '서버 오류가 발생했습니다.' },
+      { 
+        error: '서버 오류가 발생했습니다.',
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

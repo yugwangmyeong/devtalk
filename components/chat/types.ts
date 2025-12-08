@@ -30,6 +30,7 @@ export interface Message {
   userId: string;
   chatRoomId: string;
   createdAt: string;
+  updatedAt?: string;
   user: {
     id: string;
     email: string;
