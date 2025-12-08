@@ -1,8 +1,3 @@
-/**
- * 대시보드 데이터 처리 워커
- * 
- * 큐에서 대시보드 데이터 생성 작업을 가져와서 처리하고 결과를 캐시에 저장
- */
 
 import { dashboardQueue } from '@/lib/queue';
 import { cache, getCacheKey } from '@/lib/cache';
@@ -13,11 +8,8 @@ interface DashboardJobData {
   userId: string;
 }
 
-/**
- * 대시보드 데이터 생성
- */
+
 async function generateDashboardData(userId: string) {
-  // Get all teams the user is a member of
   const teamMemberships = await prisma.teamMember.findMany({
     where: {
       userId,
@@ -43,9 +35,8 @@ async function generateDashboardData(userId: string) {
     };
   }
 
-  // 병렬로 여러 쿼리 실행 (성능 개선)
+
   const [upcomingEvents, recentEvents, recentChannels, recentMembers] = await Promise.all([
-    // Get upcoming events (next 2 weeks)
     (async () => {
       const now = new Date();
       const twoWeeksLater = new Date(now);
@@ -105,7 +96,6 @@ async function generateDashboardData(userId: string) {
       }));
     })(),
 
-    // Get recent events
     (async () => {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -139,7 +129,6 @@ async function generateDashboardData(userId: string) {
       });
     })(),
 
-    // Get recent channels
     (async () => {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -165,7 +154,6 @@ async function generateDashboardData(userId: string) {
       });
     })(),
 
-    // Get recent members
     (async () => {
       const thirtyDaysAgo = new Date();
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -201,7 +189,6 @@ async function generateDashboardData(userId: string) {
     })(),
   ]);
 
-  // Combine and sort activities
   const activities: Array<{
     type: 'event' | 'channel' | 'member';
     id: string;
@@ -255,19 +242,14 @@ async function generateDashboardData(userId: string) {
   };
 }
 
-/**
- * 워커 메인 루프
- */
 export async function startDashboardWorker() {
   console.log('[Worker] Dashboard worker started');
 
   while (true) {
     try {
-      // 큐에서 작업 가져오기 (5초 타임아웃)
+    
       const job = await dashboardQueue.dequeue(5);
-
       if (!job) {
-        // 작업이 없으면 계속 대기
         continue;
       }
 
@@ -278,21 +260,19 @@ export async function startDashboardWorker() {
         return await generateDashboardData(jobData.userId);
       });
 
-      // 결과를 캐시에 저장
+    
       const cacheKey = getCacheKey('dashboard', job.data.userId);
-      await cache.set(cacheKey, result, 300); // 5분 TTL
+      await cache.set(cacheKey, result, 300);
 
       console.log(`[Worker] Job completed: ${job.id} (${duration.toFixed(2)}ms)`);
     } catch (error) {
       console.error('[Worker] Error processing job:', error);
-      // 에러 발생 시 재시도 로직은 queue.ts의 retry 메서드에서 처리
+    
     }
   }
 }
 
-/**
- * 워커 시작 (독립 프로세스로 실행 가능)
- */
+
 if (require.main === module) {
   startDashboardWorker().catch((error) => {
     console.error('[Worker] Fatal error:', error);

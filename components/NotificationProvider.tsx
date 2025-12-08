@@ -14,32 +14,29 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
   const searchParams = useSearchParams();
   const [hasLoadedNotifications, setHasLoadedNotifications] = useState(false);
 
-  // 현재 보고 있는 방 ID를 추적하기 위한 ref
-  // 리스너 내부에서 사용하므로 ref로 관리하여 리스너 재등록 방지
+
   const currentRoomIdRef = useRef<string | null>(null);
 
-  // URL 변경 시 현재 방 ID 업데이트 (리스너 재등록 없이)
-  // 주로 이벤트로 업데이트되지만, URL도 보조적으로 확인
+
   useEffect(() => {
     if (pathname === '/chat') {
       const roomIdFromUrl = searchParams.get('roomId');
-      // 이벤트로 받은 값이 없을 때만 URL에서 가져옴
+    
       if (!currentRoomIdRef.current && roomIdFromUrl) {
         currentRoomIdRef.current = roomIdFromUrl;
         console.log('[NotificationProvider] Current room ID updated from URL (chat):', roomIdFromUrl);
       }
     } else if (pathname === '/teams') {
-      // 팀 페이지는 이벤트로만 업데이트 (URL에 roomId가 없음)
-      // 이벤트가 없으면 null로 유지
+     
       console.log('[NotificationProvider] On teams page, room ID managed by events');
     } else {
-      // 다른 페이지에서는 방 ID 초기화
+     
       currentRoomIdRef.current = null;
       console.log('[NotificationProvider] Not on chat/teams page, clearing room ID');
     }
   }, [pathname, searchParams]);
 
-  // 전역 이벤트로 현재 방 ID 업데이트 (ChatPage에서 선택된 방이 변경될 때)
+ 
   useEffect(() => {
     const handleRoomChange = (event: CustomEvent<{ roomId: string | null }>) => {
       const newRoomId = event.detail.roomId;
@@ -53,7 +50,6 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
     };
   }, []);
 
-  // Load saved notifications from database when user is authenticated
   useEffect(() => {
     if (!user || hasLoadedNotifications) {
       return;
@@ -68,7 +64,7 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
           const notifications = data.notifications || [];
           // console.log('[NotificationProvider] Loaded notifications from DB:', notifications.length);
           
-          // Add all notifications to store
+
           notifications.forEach((notification: any) => {
             addNotification(notification);
           });
@@ -85,7 +81,7 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
     loadNotifications();
   }, [user, hasLoadedNotifications, addNotification]);
 
-  // 전역 알림 리스너 설정 (한 번만 등록)
+
   useEffect(() => {
     console.log('[NotificationProvider] useEffect triggered:', {
       hasSocket: !!socket,
@@ -139,18 +135,17 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
         messageUserId: data.lastMessage.user.id,
       });
 
-      // 알림 조건: 본인 메시지가 아니고, 현재 보고 있는 방이 아닐 때
+     
       if (!isOwnMessage && !isCurrentRoom) {
         console.log('[NotificationProvider] Creating notification for message');
-        // 채팅방 정보와 워크스페이스 정보를 알림 생성 시점에 동적으로 가져오기
+      
         const getRoomInfo = async (roomId: string): Promise<{ teamName: string; roomName: string; teamId?: string; channelId?: string }> => {
           try {
             // console.log('[NotificationProvider] Fetching room info for roomId:', roomId);
-            // roomId로 직접 조회 (팀 채널 포함)
             const response = await fetch(`/api/chat/rooms?roomId=${roomId}`);
             if (response.ok) {
               const data = await response.json();
-              const room = data.rooms?.[0]; // roomId로 조회하면 배열의 첫 번째 요소
+              const room = data.rooms?.[0];
 
               // console.log('[NotificationProvider] Found room:', {
               //   roomId,
@@ -170,14 +165,12 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
                 return { teamName: '알 수 없음', roomName: '알 수 없음' };
               }
 
-              // 팀 채널인 경우
               if (room.teamChannel) {
                 // console.log('[NotificationProvider] Team channel detected:', {
                 //   teamChannelId: room.teamChannel.id,
                 //   teamId: room.teamChannel.teamId,
                 //   channelName: room.teamChannel.name,
                 // });
-                // 팀 정보 가져오기
                 try {
                   const teamResponse = await fetch(`/api/teams/${room.teamChannel.teamId}`);
                   if (teamResponse.ok) {
@@ -207,7 +200,6 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
                 return result;
               }
 
-              // 개인 공간인 경우
               if (room.isPersonalSpace) {
                 // console.log('[NotificationProvider] Personal space detected');
                 return {
@@ -216,7 +208,6 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
                 };
               }
 
-              // DM인 경우
               if (room.type === 'DM') {
                 // console.log('[NotificationProvider] DM detected, roomName:', room.name);
                 return {
@@ -225,7 +216,6 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
                 };
               }
 
-              // 그룹 채팅방인 경우
               // console.log('[NotificationProvider] Group chat detected, roomName:', room.name);
               return {
                 teamName: '그룹 채팅',
@@ -240,11 +230,10 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
           return { teamName: '알 수 없음', roomName: '알 수 없음' };
         };
 
-        // 비동기로 채팅방 정보 가져와서 알림 생성
+
         getRoomInfo(data.roomId).then(async ({ teamName, roomName, teamId, channelId }) => {
           const senderName = data.lastMessage.user.name || data.lastMessage.user.email.split('@')[0];
 
-          // 사용자 정보를 다시 조회해서 최신 프로필 이미지 URL 가져오기
           let userProfileImageUrl = data.lastMessage.user.profileImageUrl;
           try {
             const userResponse = await fetch(`/api/users/search?userId=${data.lastMessage.user.id}`);
@@ -306,7 +295,6 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
             },
           };
 
-          // teamId와 channelId가 있으면 명시적으로 추가
           if (teamId && channelId) {
             notificationData.teamId = teamId;
             notificationData.channelId = channelId;
@@ -325,7 +313,6 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
             // });
           }
 
-          // 최종 알림 데이터 확인
           // console.log('[NotificationProvider] Final notification data before adding:', {
           //   id: notificationData.id,
           //   type: notificationData.type,
@@ -362,7 +349,6 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
     socket.on('roomMessageUpdate', handleRoomMessageUpdate);
     console.log('[NotificationProvider] roomMessageUpdate listener registered');
 
-    // Handle team invitation notifications
     const handleNotification = (data: {
       id: string;
       type: string;
@@ -379,7 +365,7 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
         name: string | null;
         profileImageUrl: string | null;
       };
-      [key: string]: unknown; // 추가 속성 허용
+      [key: string]: unknown;
     }) => {
       console.log('[NotificationProvider] ========== NOTIFICATION RECEIVED ==========');
       console.log('[NotificationProvider] Notification received:', {
@@ -391,7 +377,6 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
         teamId: data.teamId,
         hasUser: !!data.user,
         user: data.user,
-        // 전체 데이터 확인
         allKeys: Object.keys(data),
         rawData: JSON.stringify(data, null, 2),
       });
@@ -412,16 +397,13 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
           user: data.user,
         });
       } else if (data.type === 'friend_request') {
-        // friendshipId를 명시적으로 추출
         let friendshipId: string | undefined = data.friendshipId;
-        
-        // friendshipId가 없으면 알림 ID에서 추출 시도 (형식: friend-request-{friendshipId})
+
         if (!friendshipId && data.id && typeof data.id === 'string' && data.id.startsWith('friend-request-')) {
           friendshipId = data.id.replace('friend-request-', '');
           // console.log('[NotificationProvider] Extracted friendshipId from notification id:', friendshipId);
         }
         
-        // 최종 확인: friendshipId가 여전히 없으면 에러 로그
         if (!friendshipId) {
           console.error('[NotificationProvider] Missing friendshipId in friend_request notification:', {
             id: data.id,
@@ -433,38 +415,24 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
           });
         }
         
-        // console.log('[NotificationProvider] Adding friend_request notification:', {
-        //   id: data.id,
-        //   friendshipId: friendshipId,
-        //   hasFriendshipId: !!friendshipId,
-        //   friendshipIdFromData: data.friendshipId,
-        //   user: data.user,
-        //   fullData: data,
-        //   allKeys: Object.keys(data),
-        // });
         
-        // friendshipId를 명시적으로 포함하여 알림 추가
         const notificationToAdd = {
           id: data.id,
           type: 'friend_request' as const,
           title: data.title,
           message: data.message,
-          friendshipId: friendshipId, // 명시적으로 포함
+          friendshipId: friendshipId,
           createdAt: data.createdAt,
           read: data.read,
           user: data.user,
         };
         
-        // console.log('[NotificationProvider] Notification object to add:', {
-        //   ...notificationToAdd,
-        //   friendshipId: notificationToAdd.friendshipId,
-        //   hasFriendshipId: !!notificationToAdd.friendshipId,
-        // });
+
         
         addNotification(notificationToAdd);
-        // console.log('[NotificationProvider] Friend request notification added with friendshipId:', friendshipId);
+     
       } else {
-        // console.log('[NotificationProvider] Unknown notification type:', data.type);
+  
       }
     };
 
@@ -480,7 +448,7 @@ function NotificationProviderContent({ children }: { children: React.ReactNode }
     };
   }, [socket, isConnected, isAuthenticated, user, addNotification]);
 
-  // 소켓 연결 상태 모니터링
+
   useEffect(() => {
     if (socket) {
       const handleConnect = () => {

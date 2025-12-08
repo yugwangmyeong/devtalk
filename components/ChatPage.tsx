@@ -43,14 +43,14 @@ export function ChatPage() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [hasFetchedRooms, setHasFetchedRooms] = useState(false);
 
-  // selectedRoom이 변경될 때 NotificationProvider에 알림
+  
   useEffect(() => {
     const roomId = selectedRoom?.id || null;
     console.log('[ChatPage] Selected room changed, notifying NotificationProvider:', roomId);
     window.dispatchEvent(new CustomEvent('currentRoomChanged', { detail: { roomId } }));
   }, [selectedRoom]);
 
-  // Fetch chat rooms and ensure personal space exists
+ 
   useEffect(() => {
     console.log('[ChatPage] useEffect dependency changed:', {
       user: user ? user.email : null,
@@ -59,7 +59,7 @@ export function ChatPage() {
       hasFetchedRooms,
     });
 
-    // 인증 로딩 중이거나 user가 없으면 기다림
+  
     if (isAuthLoading) {
       console.log('[ChatPage] Auth still loading, waiting...');
       return;
@@ -72,8 +72,7 @@ export function ChatPage() {
       return;
     }
 
-    // 이미 방을 가져왔고, user가 변경되지 않았다면 다시 가져오지 않음
-    // (searchParams나 router 변경은 무시)
+
     if (hasFetchedRooms) {
       console.log('[ChatPage] Rooms already fetched, skipping');
       return;
@@ -86,8 +85,7 @@ export function ChatPage() {
       try {
         console.log('[ChatPage] Starting to fetch rooms');
 
-        // URL 파라미터 먼저 확인 (email이나 roomId가 있으면 개인 공간을 기본 선택하지 않음)
-        // window.location.href를 사용하여 최신 URL 파라미터 가져오기
+  
         const urlParams = new URLSearchParams(window.location.search);
         const emailFromUrl = urlParams.get('email');
         const roomIdFromUrl = urlParams.get('roomId');
@@ -99,8 +97,7 @@ export function ChatPage() {
           shouldSkipPersonalSpaceSelection,
         });
 
-        // 먼저 개인 공간이 존재하는지 확인 (생성/확인용)
-        // 이 API는 개인 공간이 없으면 생성함
+
         let personalSpaceRoom: ChatRoom | null = null;
         try {
           const personalSpaceResponse = await fetch('/api/chat/personal-space');
@@ -109,7 +106,6 @@ export function ChatPage() {
             personalSpaceRoom = personalSpaceData.room;
             console.log('[ChatPage] Personal space room from API:', personalSpaceRoom?.id, personalSpaceRoom?.name);
 
-            // 개인 공간을 store에 저장 (TeamsPage에서도 사용)
             if (personalSpaceRoom) {
               const roomForStore: ChatRoom = {
                 id: personalSpaceRoom.id,
@@ -195,14 +191,14 @@ export function ChatPage() {
           members: r.members.map(m => ({ email: m.email, name: m.name }))
         })));
 
-        // 개인 공간이 rooms 배열에 없으면 추가
+
         if (personalSpaceRoom) {
           const existingPersonalSpace = allRooms.find((r: ChatRoom) => r.isPersonalSpace);
           if (!existingPersonalSpace) {
             allRooms = [personalSpaceRoom, ...allRooms];
             console.log('[ChatPage] Added personal space to rooms array');
           } else {
-            // 기존 개인 공간을 최신 정보로 업데이트
+   
             allRooms = allRooms.map((r: ChatRoom) =>
               r.isPersonalSpace ? personalSpaceRoom! : r
             );
@@ -210,7 +206,7 @@ export function ChatPage() {
           }
         }
 
-        // 중복 제거: 같은 ID를 가진 방이 여러 개 있으면 하나만 유지
+ 
         const uniqueRooms = allRooms.reduce((acc: ChatRoom[], room: ChatRoom) => {
           const existingRoom = acc.find(r => r.id === room.id);
           if (!existingRoom) {
@@ -222,23 +218,22 @@ export function ChatPage() {
         setRooms(uniqueRooms);
         console.log('[ChatPage] Set rooms state:', uniqueRooms.length, 'rooms');
 
-        // 개인 공간 찾기 (rooms 배열에서)
+
         const finalPersonalSpaceRoom = uniqueRooms.find((r: ChatRoom) => r.isPersonalSpace) || personalSpaceRoom;
         console.log('[ChatPage] Final personal space room:', finalPersonalSpaceRoom?.id, finalPersonalSpaceRoom?.name);
 
-        // URL 파라미터 재확인 (이미 위에서 확인했지만 여기서도 확인)
-        // window.location.href를 사용하여 최신 URL 파라미터 가져오기
+
         const currentUrlParams = new URLSearchParams(window.location.search);
         const currentRoomIdFromUrl = currentUrlParams.get('roomId');
         const currentEmailFromUrl = currentUrlParams.get('email');
         
-        // email 파라미터가 있으면 나중에 처리될 때까지 선택하지 않음
+    
         if (currentEmailFromUrl) {
           console.log('[ChatPage] Email param detected, skipping room selection (will be handled by email useEffect)');
           return;
         }
 
-        // URL에서 roomId 읽어서 채팅방 선택
+
         if (currentRoomIdFromUrl) {
           const roomToSelect = uniqueRooms.find((r: ChatRoom) => r.id === currentRoomIdFromUrl && (r.isPersonalSpace || r.type === 'DM'));
           if (roomToSelect) {
@@ -248,8 +243,7 @@ export function ChatPage() {
           }
         }
 
-        // URL 파라미터가 없고 아직 방을 선택하지 않았을 때만 개인 공간 선택
-        // email 파라미터가 있으면 선택하지 않음 (email 처리 useEffect에서 처리됨)
+ 
         if (!shouldSkipPersonalSpaceSelection && finalPersonalSpaceRoom && !selectedRoom) {
           console.log('[ChatPage] No URL params and no selected room, selecting personal space as default');
           setSelectedRoom(finalPersonalSpaceRoom);
@@ -266,22 +260,20 @@ export function ChatPage() {
       }
     };
 
-    // user가 로드된 후에만 실행 (한 번만)
+   
     fetchRooms();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isAuthLoading]); // hasFetchedRooms는 내부에서 관리하므로 dependency 제외
 
-  // URL의 email 파라미터 처리: 해당 유저와의 DM 찾기 또는 생성
-  // 우선순위를 높여서 먼저 처리 (개인 공간이 렌더링되기 전에)
+  }, [user, isAuthLoading]); 
+
   useEffect(() => {
     const emailFromUrl = searchParams.get('email');
     if (!emailFromUrl || !user) {
       return;
     }
 
-    // 로딩 중이면 잠시 대기하되, 너무 오래 걸리지 않도록 처리
+
     if (isLoadingRooms) {
-      // 방 목록이 아직 로딩 중이면 잠시 후 다시 시도 (최대 2초)
+
       const timeout = setTimeout(() => {
         console.log('[ChatPage] Rooms still loading, but proceeding with email DM');
       }, 2000);
@@ -292,7 +284,7 @@ export function ChatPage() {
       try {
         console.log('[ChatPage] Email parameter found, fetching DM for:', emailFromUrl);
         
-        // 즉시 선택된 방을 null로 설정하여 개인 공간이 렌더링되지 않도록 함
+
         setSelectedRoom(null);
         
         const response = await fetch(`/api/chat/rooms?email=${encodeURIComponent(emailFromUrl)}`, {
@@ -306,7 +298,7 @@ export function ChatPage() {
           if (dmRoom) {
             console.log('[ChatPage] DM room found/created:', dmRoom.id);
             
-            // 방 목록에 추가 (없으면)
+ 
             setRooms((prevRooms) => {
               const exists = prevRooms.find(r => r.id === dmRoom.id);
               if (exists) {
@@ -315,7 +307,7 @@ export function ChatPage() {
               return [...prevRooms, dmRoom];
             });
             
-            // 방 선택 및 URL 업데이트 (동시에 처리하여 깜빡임 방지)
+
             setSelectedRoom(dmRoom);
             router.replace(`/chat?roomId=${dmRoom.id}`);
           }
@@ -323,7 +315,7 @@ export function ChatPage() {
           const error = await response.json();
           console.error('[ChatPage] Failed to fetch/create DM:', error);
           alert(error.error || 'DM을 생성할 수 없습니다.');
-          // email 파라미터 제거하고 개인 공간으로 이동
+
           router.replace('/chat');
         }
       } catch (error) {
@@ -335,14 +327,14 @@ export function ChatPage() {
     handleEmailDM();
   }, [searchParams, user, isLoadingRooms, router]);
 
-  // URL의 roomId가 변경될 때만 선택된 방 업데이트 (방 목록은 다시 가져오지 않음)
+
   useEffect(() => {
     if (!rooms.length || !searchParams.get('roomId')) {
       return;
     }
 
     const roomIdFromUrl = searchParams.get('roomId');
-    // email 파라미터가 있으면 roomId 처리를 건너뜀 (위의 useEffect에서 처리)
+
     if (searchParams.get('email')) {
       return;
     }
@@ -356,7 +348,6 @@ export function ChatPage() {
   }, [searchParams, rooms, selectedRoom?.id]);
 
 
-  // Fetch messages when room is selected
   useEffect(() => {
     if (!selectedRoom) {
       setMessages([]);
@@ -398,7 +389,7 @@ export function ChatPage() {
     fetchMessages();
   }, [selectedRoom]);
 
-  // Join room when selected and socket is connected (개인 공간 제외)
+
   useEffect(() => {
     console.log('[ChatPage] Join room effect triggered:', {
       hasSelectedRoom: !!selectedRoom,
@@ -453,10 +444,10 @@ export function ChatPage() {
         socket.emit('leaveRoom', { roomId: selectedRoom.id });
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [selectedRoom?.id, socket, isConnected, isAuthenticated]);
 
-  // Listen for new messages
+
   useEffect(() => {
     if (!socket) return;
 
@@ -481,7 +472,7 @@ export function ChatPage() {
         isPersonalSpace: selectedRoom?.isPersonalSpace,
       });
 
-      // Personal Space의 경우 소켓 이벤트를 무시 (HTTP API로만 처리)
+
       if (selectedRoom?.isPersonalSpace && data.chatRoomId === selectedRoom?.id) {
         console.log('[ChatPage] Ignoring socket event for personal space (handled via HTTP API)');
         return;
@@ -492,11 +483,11 @@ export function ChatPage() {
         createdAt: typeof data.createdAt === 'string' ? data.createdAt : data.createdAt.toISOString(),
       };
 
-      // 현재 선택된 방의 메시지만 추가 (알림은 NotificationProvider에서 처리)
+
       if (message.chatRoomId === selectedRoom?.id) {
         console.log('[ChatPage] Adding message to current room:', message.id);
         setMessages((prev) => {
-          // 중복 체크 (더 엄격하게)
+
           const exists = prev.some(m => m.id === message.id);
           if (exists) {
             console.log('[ChatPage] Message already exists, skipping:', message.id);
@@ -506,11 +497,11 @@ export function ChatPage() {
           return [...prev, message];
         });
       }
-      // Update room list with new last message (Personal Space 제외)
+
       setRooms((prev) => {
         const targetRoom = prev.find(r => r.id === message.chatRoomId);
         if (targetRoom?.isPersonalSpace) {
-          // Personal Space는 HTTP API로만 업데이트되므로 소켓 이벤트 무시
+
           return prev;
         }
         
@@ -551,7 +542,7 @@ export function ChatPage() {
       };
       updatedAt: string;
     }) => {
-      // Personal Space의 경우 소켓 이벤트를 무시 (HTTP API로만 처리)
+
       setRooms((prev) => {
         const targetRoom = prev.find(r => r.id === data.roomId);
         if (targetRoom?.isPersonalSpace) {
@@ -559,7 +550,7 @@ export function ChatPage() {
           return prev;
         }
 
-        // 채팅방 목록 업데이트 (알림은 NotificationProvider에서 처리)
+
         const updatedRooms = prev.map((room) =>
           room.id === data.roomId
             ? {
@@ -643,7 +634,7 @@ export function ChatPage() {
   }, [socket, selectedRoom?.id, user?.id]);
 
 
-  // Handle send message
+
   const handleSendMessage = async () => {
     if (!selectedRoom || !messageInput.trim()) {
       return;
@@ -652,7 +643,7 @@ export function ChatPage() {
     const content = messageInput.trim();
     const roomId = selectedRoom.id;
 
-    // 개인 공간의 경우 HTTP API 사용
+
     console.log('[ChatPage] Checking if personal space:', {
       isPersonalSpace: selectedRoom.isPersonalSpace,
       roomId,
@@ -694,7 +685,7 @@ export function ChatPage() {
               : new Date(data.message.createdAt).toISOString(),
           };
 
-          // 메시지 목록에 추가 (중복 체크)
+
           setMessages((prev) => {
             const exists = prev.some(m => m.id === message.id);
             if (exists) {
@@ -705,7 +696,7 @@ export function ChatPage() {
             return [...prev, message];
           });
 
-          // 채팅방 목록 업데이트
+
           setRooms((prev) =>
             prev.map((room) =>
               room.id === roomId

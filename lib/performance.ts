@@ -1,7 +1,3 @@
-/**
- * 성능 측정 유틸리티
- * API 응답 시간 및 처리 시간을 측정합니다.
- */
 
 export interface PerformanceMetrics {
   startTime: number;
@@ -13,9 +9,7 @@ export interface PerformanceMetrics {
 
 const metrics: Map<string, PerformanceMetrics[]> = new Map();
 
-/**
- * 성능 측정 시작
- */
+
 export function startPerformanceMeasurement(operation: string, metadata?: Record<string, any>): string {
   const id = `${operation}_${Date.now()}_${Math.random()}`;
   const metric: PerformanceMetrics = {
@@ -32,9 +26,7 @@ export function startPerformanceMeasurement(operation: string, metadata?: Record
   return id;
 }
 
-/**
- * 성능 측정 종료
- */
+
 export function endPerformanceMeasurement(operation: string, id?: string): number {
   const operationMetrics = metrics.get(operation);
   if (!operationMetrics || operationMetrics.length === 0) {
@@ -48,9 +40,7 @@ export function endPerformanceMeasurement(operation: string, id?: string): numbe
   return metric.duration;
 }
 
-/**
- * 성능 측정 래퍼 함수
- */
+
 export async function measurePerformance<T>(
   operation: string,
   fn: () => Promise<T>,
@@ -74,9 +64,7 @@ export async function measurePerformance<T>(
   return { result, duration };
 }
 
-/**
- * 성능 통계 조회
- */
+
 export function getPerformanceStats(operation: string) {
   const operationMetrics = metrics.get(operation) || [];
   if (operationMetrics.length === 0) {
@@ -111,9 +99,6 @@ export function getPerformanceStats(operation: string) {
   };
 }
 
-/**
- * 모든 성능 통계 조회
- */
 export function getAllPerformanceStats() {
   const stats: Record<string, any> = {};
   for (const [operation] of metrics) {
@@ -122,9 +107,6 @@ export function getAllPerformanceStats() {
   return stats;
 }
 
-/**
- * 성능 통계 초기화
- */
 export function clearPerformanceStats(operation?: string) {
   if (operation) {
     metrics.delete(operation);
@@ -133,9 +115,7 @@ export function clearPerformanceStats(operation?: string) {
   }
 }
 
-/**
- * 성능 비교 리포트 생성
- */
+
 export function generatePerformanceComparison(
   before: ReturnType<typeof getPerformanceStats>,
   after: ReturnType<typeof getPerformanceStats>

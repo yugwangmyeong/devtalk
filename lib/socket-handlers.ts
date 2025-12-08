@@ -2,16 +2,13 @@ import { Socket, Server as SocketIOServer } from 'socket.io';
 import { prisma } from './prisma';
 import { verifyToken } from './auth';
 
-// Extend Socket interface to include userId
 interface AuthenticatedSocket extends Socket {
   userId?: string;
 }
 
-// Socket event handlers
 export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOServer) {
   // console.log('Setting up handlers for socket:', socket.id);
 
-  // Authenticate socket connection
   socket.on('authenticate', async (data: { token: string }) => {
     // console.log('[Socket] authenticate received for socket:', socket.id);
     // console.log('[Socket] Token received:', data.token ? `${data.token.substring(0, 20)}...` : 'null');
@@ -28,10 +25,8 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
       
       if (decoded) {
         socket.userId = decoded.userId;
-        // Join user's personal room for notifications
         socket.join(decoded.userId);
         
-        // Verify join was successful
         const userRoom = io.sockets.adapter.rooms.get(decoded.userId);
         // console.log(`[Socket] User ${decoded.userId} joined room, room exists: ${!!userRoom}, sockets in room: ${userRoom ? userRoom.size : 0}`);
         
@@ -48,7 +43,6 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
     }
   });
 
-  // Join chat room
   socket.on('joinRoom', async (data: { roomId: string }) => {
     if (!socket.userId) {
       socket.emit('error', { message: 'Not authenticated' });
@@ -58,7 +52,6 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
     const { roomId } = data;
 
     try {
-      // Verify user is a member of the room
       const member = await prisma.chatRoomMember.findUnique({
         where: {
           userId_chatRoomId: {
@@ -74,14 +67,9 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
       }
 
       socket.join(roomId);
-      // console.log(`[Socket] Socket ${socket.id} joined room ${roomId}`);
-      
-      // Verify join was successful
       const roomAfterJoin = io.sockets.adapter.rooms.get(roomId);
       const usersInRoomAfterJoin = roomAfterJoin ? roomAfterJoin.size : 0;
-      // console.log(`[Socket] Room ${roomId} now has ${usersInRoomAfterJoin} users after join`);
 
-      // Notify others in the room
       socket.to(roomId).emit('userJoined', {
         userId: socket.userId,
         roomId,
@@ -94,7 +82,6 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
     }
   });
 
-  // Leave room
   socket.on('leaveRoom', (data: { roomId: string }) => {
     if (!socket.userId) {
       socket.emit('error', { message: 'Not authenticated' });
@@ -103,7 +90,6 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
 
     const { roomId } = data;
     socket.leave(roomId);
-    // console.log(`Socket ${socket.id} left room ${roomId}`);
 
     socket.to(roomId).emit('userLeft', {
       userId: socket.userId,
@@ -111,13 +97,8 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
     });
   });
 
-  // Send message
   socket.on('sendMessage', async (data: { roomId: string; content: string }) => {
-    // console.log('[Socket] sendMessage received:', { 
-    //   socketId: socket.id, 
-    //   userId: socket.userId,
-    //   data 
-    // });
+
 
     if (!socket.userId) {
       console.error('[Socket] sendMessage failed: Not authenticated');
@@ -133,10 +114,7 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
       return;
     }
 
-    // console.log('[Socket] Processing sendMessage:', { roomId, content, userId: socket.userId });
-
     try {
-      // Verify user is a member of the room and check if it's a personal space
       const member = await prisma.chatRoomMember.findUnique({
         where: {
           userId_chatRoomId: {
@@ -158,24 +136,16 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
         return;
       }
 
-      // Check if this is a personal space (only one member - the user themselves)
       const isPersonalSpace = member.chatRoom.type === 'DM' && member.chatRoom.members.length === 1;
       
       if (isPersonalSpace) {
-        // console.log('[Socket] Personal space detected, rejecting socket message (should use HTTP API)');
         socket.emit('error', { message: 'Personal space messages should be sent via HTTP API' });
         return;
       }
 
-      // Check how many users are currently in the room (Socket.io room)
       const room = io.sockets.adapter.rooms.get(roomId);
       const usersInRoom = room ? room.size : 0;
-      // console.log(`[Socket] Users currently in room ${roomId}: ${usersInRoom}`);
-      // console.log(`[Socket] Room sockets:`, room ? Array.from(room) : []);
-      // console.log(`[Socket] Current socket ID: ${socket.id}, is in room: ${socket.rooms.has(roomId)}`);
 
-      // Save message to database (always save to DB)
-      // console.log('[Socket] Saving message to database...');
       const message = await prisma.message.create({
         data: {
           content: content.trim(),
@@ -194,7 +164,6 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
         },
       });
 
-      // Re-fetch user to ensure we have the latest profileImageUrl
       const user = await prisma.user.findUnique({
         where: { id: socket.userId },
         select: {
@@ -205,19 +174,8 @@ export function setupSocketHandlers(socket: AuthenticatedSocket, io: SocketIOSer
         },
       });
 
-      // Use the re-fetched user data if available
       const messageUser = user || message.user;
 
-      // console.log('[Socket] Message saved:', { 
-      //   messageId: message.id, 
-      //   roomId: message.chatRoomId,
-      //   userId: message.userId,
-      //   userProfileImageUrl: messageUser.profileImageUrl,
-      //   originalUserProfileImageUrl: message.user.profileImageUrl,
-      //   user: messageUser,
-      // });
-
-      // Check if this is a team channel and get the sender's team role
       const teamChannel = await prisma.teamChannel.findUnique({
         where: { chatRoomId: roomId },
         select: { teamId: true, type: true },

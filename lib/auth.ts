@@ -27,20 +27,20 @@ export function generateToken(userId: string, email: string): string {
 
 // Add token to blacklist
 export async function addTokenToBlacklist(token: string): Promise<void> {
-  // 안전한 Redis 작업으로 블랙리스트 추가
+  
   await safeRedisOperation(
     async (redis) => {
-      // JWT에서 만료 시간 추출
+     
       const decoded = jwt.decode(token) as { exp?: number } | null;
       if (decoded && decoded.exp) {
         const expiresIn = decoded.exp - Math.floor(Date.now() / 1000);
         if (expiresIn > 0) {
-          // 토큰의 만료 시간까지 Redis에 저장 (자동 삭제)
+         
           await redis.setex(`blacklist:${token}`, expiresIn, '1');
         }
       }
     },
-    undefined // Redis가 없으면 조용히 실패
+    undefined 
   );
 }
 
@@ -50,16 +50,16 @@ export async function isTokenBlacklisted(token: string): Promise<boolean> {
   const redis = getRedisClient();
   if (!redis) {
     // console.log('[Auth] Redis not available, skipping blacklist check (token allowed)');
-    return false; // Redis가 없으면 블랙리스트 확인 불가 = 토큰 허용
+    return false; 
   }
 
   // Redis 연결 상태 확인
   if (!isRedisReady(redis)) {
     // console.log('[Auth] Redis not ready, skipping blacklist check (token allowed)');
-    return false; // Redis가 준비되지 않았으면 블랙리스트 확인 불가 = 토큰 허용
+    return false; 
   }
 
-  // 안전한 Redis 작업으로 블랙리스트 확인
+  
   const result = await safeRedisOperation(
     async (redis) => {
       try {
@@ -73,10 +73,10 @@ export async function isTokenBlacklisted(token: string): Promise<boolean> {
         return isBlacklisted;
       } catch (error) {
         console.error('[Auth] Error checking blacklist:', error);
-        return false; // 에러 발생 시 false 반환 (토큰 사용 허용)
+        return false; 
       }
     },
-    false // Redis 연결 실패 시 false 반환 (토큰 사용 허용)
+    false
   );
 
   return result;
@@ -85,12 +85,12 @@ export async function isTokenBlacklisted(token: string): Promise<boolean> {
 // Verify JWT token
 export async function verifyToken(token: string): Promise<{ userId: string; email: string } | null> {
   try {
-    // 먼저 JWT 자체가 유효한지 확인 (블랙리스트 확인 전에)
+    
     let decoded: { userId: string; email: string };
     try {
       decoded = jwt.verify(token, JWT_SECRET) as { userId: string; email: string };
     } catch (jwtError) {
-      // JWT 자체가 유효하지 않으면 블랙리스트 확인 불필요
+     
       if (jwtError instanceof jwt.JsonWebTokenError) {
         console.error('[Auth] JWT verification error:', jwtError.name, jwtError.message);
       } else if (jwtError instanceof jwt.TokenExpiredError) {
@@ -103,7 +103,7 @@ export async function verifyToken(token: string): Promise<{ userId: string; emai
       return null;
     }
 
-    // JWT가 유효하면 블랙리스트 확인
+    
     const isBlacklisted = await isTokenBlacklisted(token);
     if (isBlacklisted) {
       // console.log('[Auth] Token is blacklisted (valid JWT but blacklisted)');
@@ -117,7 +117,7 @@ export async function verifyToken(token: string): Promise<{ userId: string; emai
   }
 }
 
-// Extract token from request headers
+
 export function getTokenFromRequest(request: Request): string | null {
   const authHeader = request.headers.get('authorization');
   if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -126,7 +126,7 @@ export function getTokenFromRequest(request: Request): string | null {
   return null;
 }
 
-// Get token from cookies (for Next.js)
+
 export function getTokenFromCookies(cookies: { get: (name: string) => { value: string } | undefined }): string | null {
   const tokenCookie = cookies.get('auth-token');
   return tokenCookie?.value || null;

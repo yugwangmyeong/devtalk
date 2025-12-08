@@ -30,17 +30,17 @@ export const useNotificationStore = create<NotificationState>((set) => ({
       hasFriendshipId: !!notification.friendshipId,
     });
     set((state) => {
-      // 중복 체크: 같은 ID의 알림이 이미 있으면 추가하지 않음
+      
       const existingNotification = state.notifications.find((n) => n.id === notification.id);
       if (existingNotification) {
         console.log('[NotificationStore] Duplicate notification, skipping:', notification.id);
         return state;
       }
 
-      // 새 알림 추가 (최대 개수 제한) - friendshipId를 명시적으로 포함
+     
       const notificationToAdd: Notification = {
         ...notification,
-        friendshipId: notification.friendshipId, // 명시적으로 포함
+        friendshipId: notification.friendshipId,
       };
       const newNotifications = [notificationToAdd, ...state.notifications].slice(0, MAX_NOTIFICATIONS);
       
@@ -104,7 +104,6 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     });
   },
   
-  // friendshipId로 알림 제거 (친구 요청 수락/거절 시 사용)
   removeNotificationByFriendshipId: (friendshipId: string) => {
     console.log('[NotificationStore] removeNotificationByFriendshipId called:', friendshipId);
     set((state) => {
