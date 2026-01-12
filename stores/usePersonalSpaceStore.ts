@@ -15,13 +15,11 @@ export const usePersonalSpaceStore = create<PersonalSpaceState>((set, get) => ({
   },
   
   fetchPersonalSpace: async () => {
-    // 이미 로드된 room이 있으면 반환
     const currentRoom = get().personalSpaceRoom;
     if (currentRoom) {
       return currentRoom;
     }
     
-    // 없으면 API 호출
     try {
       const response = await fetch('/api/chat/personal-space');
       if (response.ok) {

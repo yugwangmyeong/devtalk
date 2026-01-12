@@ -1,8 +1,3 @@
-/**
- * Redis 기반 메시지 큐 시스템
- * 
- * 대시보드 데이터와 같은 무거운 작업을 비동기로 처리하기 위한 큐 시스템
- */
 
 import { getRedisClient } from './redis';
 
@@ -23,9 +18,6 @@ export class MessageQueue {
     this.queueName = `queue:${queueName}`;
   }
 
-  /**
-   * 작업을 큐에 추가
-   */
   async enqueue(job: Omit<QueueJob, 'id' | 'createdAt'>): Promise<string> {
     if (!this.redis) {
       throw new Error('Redis client is not available');
@@ -48,16 +40,13 @@ export class MessageQueue {
     return jobId;
   }
 
-  /**
-   * 큐에서 작업 가져오기 (블로킹)
-   */
+
   async dequeue(timeout: number = 5): Promise<QueueJob | null> {
     if (!this.redis) {
       throw new Error('Redis client is not available');
     }
 
-    // BRPOP: List의 오른쪽에서 요소를 가져옴 (FIFO)
-    // timeout 초 동안 대기, 없으면 null 반환
+
     const result = await this.redis.brpop(this.queueName, timeout);
     
     if (!result || result.length < 2) {
@@ -70,9 +59,7 @@ export class MessageQueue {
     return jobData;
   }
 
-  /**
-   * 큐에서 작업 가져오기 (논블로킹)
-   */
+
   async dequeueNonBlocking(): Promise<QueueJob | null> {
     if (!this.redis) {
       throw new Error('Redis client is not available');
@@ -90,9 +77,7 @@ export class MessageQueue {
     return jobData;
   }
 
-  /**
-   * 실패한 작업을 재시도 큐에 추가
-   */
+
   async retry(job: QueueJob, error?: Error): Promise<void> {
     if (!this.redis) {
       throw new Error('Redis client is not available');
@@ -112,7 +97,6 @@ export class MessageQueue {
       return;
     }
 
-    // 재시도 큐에 추가 (지연 후 처리)
     const retryQueue = `${this.queueName}:retry`;
     const retryJob = {
       ...job,
@@ -124,9 +108,7 @@ export class MessageQueue {
     // console.log(`[Queue] Job retry scheduled: ${job.id} (attempt ${attempts})`);
   }
 
-  /**
-   * 큐 길이 조회
-   */
+
   async length(): Promise<number> {
     if (!this.redis) {
       return 0;
@@ -135,9 +117,7 @@ export class MessageQueue {
     return await this.redis.llen(this.queueName);
   }
 
-  /**
-   * 큐 비우기
-   */
+
   async clear(): Promise<void> {
     if (!this.redis) {
       return;
@@ -147,9 +127,7 @@ export class MessageQueue {
     // console.log(`[Queue] Cleared: ${this.queueName}`);
   }
 
-  /**
-   * 실패한 작업 목록 조회
-   */
+
   async getFailedJobs(limit: number = 10): Promise<QueueJob[]> {
     if (!this.redis) {
       return [];
@@ -162,8 +140,6 @@ export class MessageQueue {
   }
 }
 
-/**
- * 전역 대시보드 큐 인스턴스
- */
+
 export const dashboardQueue = new MessageQueue('dashboard');
 

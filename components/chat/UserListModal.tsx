@@ -14,7 +14,7 @@ export function UserListModal({ users, onSelectUser, onClose }: UserListModalPro
   const [sendingRequests, setSendingRequests] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // Fetch friend statuses for all users
+
     const fetchFriendStatuses = async () => {
       try {
         const response = await fetch('/api/friends?status=ACCEPTED');

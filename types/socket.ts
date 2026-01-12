@@ -45,6 +45,25 @@ export interface ServerToClientEvents {
     };
     updatedAt: string;
   }) => void;
+  messageUpdated: (data: {
+    id: string;
+    content: string;
+    userId: string;
+    chatRoomId: string;
+    createdAt: Date | string;
+    updatedAt: Date | string;
+    user: {
+      id: string;
+      email: string;
+      name: string | null;
+      profileImageUrl: string | null;
+      teamRole?: 'OWNER' | 'ADMIN' | 'MEMBER' | null;
+    };
+  }) => void;
+  messageDeleted: (data: {
+    messageId: string;
+    roomId: string;
+  }) => void;
   notification: (data: {
     id: string;
     type: string;
@@ -64,6 +83,7 @@ export interface ServerToClientEvents {
     };
   }) => void;
   friendsUpdated: () => void;
+  teamsUpdated: () => void;
   error: (data: { message: string }) => void;
 }
 

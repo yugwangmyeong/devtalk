@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useTeamViewStore } from '@/stores/useTeamViewStore';
+import { useSocketStore } from '@/stores/useSocketStore';
 import './TeamPanel.css';
 
 export interface Team {
@@ -112,6 +113,25 @@ export function TeamPanel({ isOpen, onClose, isFullPage = false }: TeamPanelProp
       fetchTeams();
     }
   }, [isOpen, user, fetchTeams]);
+
+  // Socket.IO 이벤트 리스너: 팀 목록 업데이트
+  const { socket, isConnected, isAuthenticated } = useSocketStore();
+  useEffect(() => {
+    if (!socket || !isConnected || !isAuthenticated) return;
+
+    const handleTeamsUpdated = () => {
+      console.log('[TeamPanel] Teams updated event received, refreshing team list...');
+      if (isOpen && user) {
+        fetchTeams();
+      }
+    };
+
+    socket.on('teamsUpdated', handleTeamsUpdated);
+
+    return () => {
+      socket.off('teamsUpdated', handleTeamsUpdated);
+    };
+  }, [socket, isConnected, isAuthenticated, isOpen, user, fetchTeams]);
 
   // 팀 생성
   const handleCreateTeam = async (e: React.FormEvent) => {

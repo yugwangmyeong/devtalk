@@ -48,6 +48,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         upcomingEvents: [],
         teamActivities: [],
+        announcements: [],
       });
     }
 
@@ -245,9 +246,96 @@ export async function GET(request: NextRequest) {
       // Take top 10 most recent activities
       const teamActivities = activities.slice(0, 10);
 
+      // Get announcements from all teams (최근 7일 이내 공지)
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      // Get all announcement channels for teams the user is a member of
+      const announcementChannels = await prisma.teamChannel.findMany({
+        where: {
+          teamId: { in: teamIds },
+          type: 'ANNOUNCEMENT',
+        },
+        include: {
+          team: {
+            select: {
+              id: true,
+              name: true,
+              iconUrl: true,
+            },
+          },
+          chatRoom: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      });
+
+      const announcementRoomIds = announcementChannels.map((ch) => ch.chatRoom.id);
+
+      // Get recent announcements (최근 7일 이내, 최대 10개)
+      const announcements = await prisma.message.findMany({
+        where: {
+          chatRoomId: { in: announcementRoomIds },
+          createdAt: { gte: sevenDaysAgo },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              profileImageUrl: true,
+            },
+          },
+          chatRoom: {
+            include: {
+              teamChannel: {
+                include: {
+                  team: {
+                    select: {
+                      id: true,
+                      name: true,
+                      iconUrl: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 10,
+      });
+
+      // Format announcements
+      const formattedAnnouncements = announcements.map((announcement) => {
+        // 공지 내용에서 원본 메시지 추출 (📣 author • date 형식 제거)
+        const content = announcement.content;
+        const lines = content.split('\n');
+        const actualContent = lines.length > 1 ? lines.slice(1).join('\n') : content;
+
+        return {
+          id: announcement.id,
+          content: actualContent,
+          team: announcement.chatRoom.teamChannel?.team || null,
+          author: {
+            id: announcement.user.id,
+            email: announcement.user.email,
+            name: announcement.user.name,
+            profileImageUrl: announcement.user.profileImageUrl,
+          },
+          createdAt: announcement.createdAt.toISOString(),
+        };
+      });
+
       return {
         upcomingEvents: formattedEvents,
         teamActivities,
+        announcements: formattedAnnouncements,
       };
     });
 

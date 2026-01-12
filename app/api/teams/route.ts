@@ -244,8 +244,16 @@ export async function GET(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('[GET /api/teams] Error:', error);
+    console.error('[GET /api/teams] Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      name: error instanceof Error ? error.name : undefined,
+    });
     return NextResponse.json(
-      { error: '팀 목록을 가져오는데 실패했습니다.' },
+      { 
+        error: '팀 목록을 가져오는데 실패했습니다.',
+        details: error instanceof Error ? error.message : String(error),
+      },
       { status: 500 }
     );
   }

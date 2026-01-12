@@ -28,26 +28,78 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '50', 10);
 
     // Get notifications from database
-    const notifications = await prisma.notification.findMany({
-      where: {
-        userId: decoded.userId,
-        ...(unreadOnly && { read: false }),
-      },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            profileImageUrl: true,
+    let notifications;
+    try {
+      // 친구 요청 알림의 경우, 이미 처리된(PENDING이 아닌) 친구 요청에 대한 알림은 제외
+      const allNotifications = await prisma.notification.findMany({
+        where: {
+          userId: decoded.userId,
+          ...(unreadOnly && { read: false }),
+        },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              profileImageUrl: true,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: limit,
-    });
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: limit * 2, // 필터링 후에도 충분한 개수를 위해 더 많이 가져옴
+      });
+
+      // 친구 요청 알림 중 이미 처리된 것은 제외
+      const friendRequestNotifications = allNotifications.filter(
+        (n) => n.type === 'FRIEND_REQUEST' && n.friendshipId
+      );
+
+      if (friendRequestNotifications.length > 0) {
+        const friendshipIds = friendRequestNotifications
+          .map((n) => n.friendshipId)
+          .filter((id): id is string => id !== null);
+
+        // 해당 친구 요청들의 현재 상태 확인
+        const friendships = await prisma.friendship.findMany({
+          where: {
+            id: { in: friendshipIds },
+          },
+          select: {
+            id: true,
+            status: true,
+          },
+        });
+
+        const processedFriendshipIds = new Set(
+          friendships
+            .filter((f) => f.status !== 'PENDING')
+            .map((f) => f.id)
+        );
+
+        // 처리된 친구 요청 알림 제외
+        notifications = allNotifications.filter((n) => {
+          if (n.type === 'FRIEND_REQUEST' && n.friendshipId) {
+            return !processedFriendshipIds.has(n.friendshipId);
+          }
+          return true;
+        }).slice(0, limit); // 최종적으로 limit만큼만 반환
+      } else {
+        notifications = allNotifications.slice(0, limit);
+      }
+    } catch (error: any) {
+      // 테이블이 없는 경우 빈 배열 반환
+      if (error?.code === 'P2021') {
+        console.warn('[API /api/notifications] Notifications table does not exist. Please run: npx prisma db push');
+        return NextResponse.json(
+          { notifications: [] },
+          { status: 200 }
+        );
+      }
+      throw error; // 다른 에러는 다시 throw
+    }
 
     // Format notifications
     const formattedNotifications = notifications.map((notification) => ({

@@ -48,12 +48,12 @@ export function LoginPage() {
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     let fieldName = id.replace('login-', '').replace('signup-', '');
-    
+
     // Convert kebab-case to camelCase for formData keys
     if (fieldName === 'confirm-password') {
       fieldName = 'confirmPassword';
     }
-    
+
     setFormData((prev) => ({
       ...prev,
       [fieldName]: value,
@@ -101,7 +101,7 @@ export function LoginPage() {
 
       // Update auth store
       setUser(data.user);
-      
+
       // Success - redirect or update UI
       router.push('/');
       router.refresh();
@@ -218,7 +218,7 @@ export function LoginPage() {
                 </button>
 
                 {/* Google Sign In Button */}
-                <button 
+                <button
                   className="login-button google-button"
                   onClick={() => {
                     window.location.href = '/api/auth/google';
